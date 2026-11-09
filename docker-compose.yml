@@ -3,7 +3,7 @@ services:
     build: .
     environment:
       # Base URL of the medical_conditions_api service (no trailing slash)
-      API_UPSTREAM: ${API_UPSTREAM}
+      API_UPSTREAM: ${API_UPSTREAM:-http://host.docker.internal:8001}
     extra_hosts:
       # Lets the container reach an API stack running on the host (Linux)
       - "host.docker.internal:host-gateway"
