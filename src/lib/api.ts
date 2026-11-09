@@ -3,7 +3,26 @@ import { z } from 'zod';
 /** All requests go through the same-origin proxy (Vite in dev, nginx in prod). */
 export const API_BASE = '/_api';
 
-export class ApiError extends Error {}
+export class ApiError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const ErrorBody = z.object({ detail: z.string() });
+
+/** The API's human-readable `detail` (e.g. on 429 Too Many Requests), if any. */
+async function readDetail(res: Response): Promise<string | undefined> {
+  try {
+    const parsed = ErrorBody.safeParse(await res.json());
+    return parsed.success ? parsed.data.detail : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 async function getJson<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { signal });
@@ -50,7 +69,8 @@ export async function* streamChat(
     signal,
   });
   if (!res.ok || !res.body) {
-    throw new ApiError(`The API answered HTTP ${res.status}`);
+    const detail = await readDetail(res);
+    throw new ApiError(detail ?? `The API answered HTTP ${res.status}`, res.status);
   }
 
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();

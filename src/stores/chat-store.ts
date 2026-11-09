@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { streamChat } from '@/lib/api';
+import { ApiError, streamChat } from '@/lib/api';
 
 export type ChatStage = 'rephrasing' | 'retrieving' | 'found' | 'answering';
 
@@ -80,10 +80,17 @@ export const useChatStore = create<ChatState>()(
             }
           } catch (err) {
             const aborted = err instanceof DOMException && err.name === 'AbortError';
+            // A rate limit is not an outage: show the API's own explanation.
+            const limited = err instanceof ApiError && err.status === 429;
             patchLast(
               aborted
                 ? { content: streamed || 'Stopped.', status: streamed ? 'done' : 'error' }
-                : { content: 'Could not reach the chatbot API. Please try again in a moment.', status: 'error' },
+                : {
+                    content: limited
+                      ? err.message
+                      : 'Could not reach the chatbot API. Please try again in a moment.',
+                    status: 'error',
+                  },
             );
           } finally {
             controller = null;

@@ -41,7 +41,7 @@ const STEPS: StoryStep[] = [
 ];
 
 const ENDPOINTS = [
-  { method: 'POST', path: '/chat/stream', out: 'SSE: stages, tokens, final answer' },
+  { method: 'POST', path: '/chat/stream', out: 'SSE: stages, tokens, final answer (429 when rate limited)' },
   { method: 'POST', path: '/chat/', out: '{ response }' },
   { method: 'GET', path: '/insights/condition-names', out: 'string[]' },
   { method: 'GET', path: '/insights/top-symptoms?top_n=10', out: '[symptom, conditions][]' },
@@ -144,10 +144,12 @@ data: {"answer": "Acne is usually treated with…"}`}
                 <Code>ChatOpenAI(...).with_fallbacks([gemini])</Code> retries a failed OpenRouter call on Gemini.
               </Finding>
               <Finding tone="info" title="Two LLM calls per turn">
-                Rephrasing makes follow-ups work but adds a round-trip; stage events keep the UI informative meanwhile.
+                Rephrasing makes follow-ups work and turns questions into English, but adds a round-trip. Both calls are
+                awaited, so one visitor’s wait never stalls another’s; stage events keep the UI informative meanwhile.
               </Finding>
-              <Finding tone="warning" title="No auth or rate limiting yet">
-                Fine behind a reverse proxy for a demo; a public API would need per-client limits.
+              <Finding tone="fixed" title="Chat is rate limited">
+                Each visitor gets 6 questions a minute and 60 a day, with 500 a day in total; past that the API answers{' '}
+                <Code>429</Code> with a <Code>Retry-After</Code>. Sign-in is still left out of the demo.
               </Finding>
             </div>
           ),
