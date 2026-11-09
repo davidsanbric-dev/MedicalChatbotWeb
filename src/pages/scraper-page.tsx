@@ -37,10 +37,18 @@ const STEPS: StoryStep[] = [
 
 const MAPPING = [
   { selector: 'h1', field: 'title', note: 'Falls back to the slug in title case when missing.' },
-  { selector: 'div.contact-us-card > h3, ul > li', field: 'symptoms', note: 'Drops the “And more.” placeholder item.' },
-  { selector: 'section.rtf > h2', field: 'onlineDiagnosingAndTreating.heading', note: 'The clinical narrative of each page.' },
   {
-    selector: 'section.rtf > p | ul | ol',
+    selector: 'div.contact-us-card > h2, ul > li',
+    field: 'symptoms',
+    note: 'Drops the “And more.” placeholder item. The heading was an h3 before the 2026 redesign; both are read.',
+  },
+  {
+    selector: 'div.rtf--with-margin > h2',
+    field: 'onlineDiagnosingAndTreating.heading',
+    note: 'The clinical narrative of each page. Was section.rtf before the 2026 redesign; both are read.',
+  },
+  {
+    selector: 'div.rtf--with-margin > p | ul | ol',
     field: 'onlineDiagnosingAndTreating.content[]',
     note: 'Typed blocks; consecutive lists merged; nested <li> trees kept by recursion.',
   },
@@ -128,18 +136,20 @@ export function ScraperPage() {
           content: (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Finding tone="good" title="Every page parsed">
-                {s.audit.missingSymptoms} of {s.audit.records} records lack a symptom list.
+                {s.audit.missingSymptoms} of {s.audit.records} records lack a symptom list. The parser reads both the
+                original page layout and the site’s 2026 redesign.
               </Finding>
-              <Finding tone="warning" title="Two fields are never filled">
-                <Code>introduction</Code> and <Code>faqs</Code> are empty in all {s.audit.records} records: the source
-                template no longer has them.
+              <Finding tone="fixed" title="Two empty fields retired">
+                <Code>introduction</Code> and <Code>faqs</Code> were empty in all {s.audit.records} records: the pages
+                have no intro or FAQ block. The scraper no longer writes them; stored records keep the empty keys.
               </Finding>
               <Finding tone="info" title="Raw stays raw">
                 {s.audit.nbspRaw} non-breaking spaces in {s.audit.recordsWithNbsp} records are kept here on purpose; the
                 worker normalizes them.
               </Finding>
               <Finding tone="info" title="No automatic retry">
-                A failed page is skipped. Re-running fills the gap, because saved pages are skipped.
+                A failed page is skipped, and the run ends by listing what failed. Re-running fills the gap, because
+                saved pages are skipped.
               </Finding>
             </div>
           ),
