@@ -148,7 +148,7 @@ location / {
               />
               <div className="space-y-3 text-sm leading-relaxed text-ink-2">
                 <p>
-                  Node builds the app, nginx serves it. <Code>API_UPSTREAM</Code> is set per deployment, so one image fits
+                  Bun builds the app, nginx serves it. <Code>API_UPSTREAM</Code> is set per deployment, so one image fits
                   any API.
                 </p>
                 <p>The browser only talks to its own origin: no CORS, and no API URL in the bundle.</p>
@@ -163,8 +163,8 @@ location / {
           content: (
             <CodeBlock
               label="shell"
-              code={`npm install
-API_UPSTREAM=http://localhost:8001 npm run dev
+              code={`bun install
+API_UPSTREAM=http://localhost:8001 bun run dev
 
 # production image
 docker build -t medical-rag-frontend .

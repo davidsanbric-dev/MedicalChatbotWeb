@@ -40,16 +40,16 @@ The pipeline has four repositories:
 ## Running locally
 
 ```bash
-npm install
+bun install
 cp .env.example .env              # API_UPSTREAM=http://localhost:8001
-npm run dev                       # http://localhost:5173
+bun run dev                       # http://localhost:5173
 ```
 
 The browser always calls the API through the same-origin `/_api` prefix. Vite proxies it in development, and nginx proxies it in production, so the API needs no CORS configuration.
 
 ```bash
-npm run build      # type-check + production build
-npm run lint
+bun run build      # type-check + production build
+bun run lint
 ```
 
 ## Docker / deployment
@@ -60,7 +60,7 @@ docker run -p 8504:80 -e API_UPSTREAM=https://<api-host> medical-rag-frontend
 # or: docker compose up -d --build   (reads API_UPSTREAM and FRONTEND_PORT from .env)
 ```
 
-The image is a two-stage build: Node builds the app, then `nginx:alpine` serves it. The official nginx image renders `nginx/default.conf.template` with `envsubst` at startup, so `API_UPSTREAM` is set per deployment without rebuilding. The proxy disables buffering so SSE tokens arrive immediately, and unknown paths fall back to `index.html` for client-side routes.
+The image is a two-stage build: Bun installs the dependencies from `bun.lock` and builds the app, then `nginx:alpine` serves it. The official nginx image renders `nginx/default.conf.template` with `envsubst` at startup, so `API_UPSTREAM` is set per deployment without rebuilding. The proxy disables buffering so SSE tokens arrive immediately, and unknown paths fall back to `index.html` for client-side routes.
 
 On Dokploy, `API_UPSTREAM` can be the API's public URL or its internal service URL on the shared Docker network.
 
