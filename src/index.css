@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Surfaces (dark-first "control room" theme) */
+  --color-page: #0b1016;
+  --color-surface: #111821;
+  --color-surface-2: #17202b;
+  --color-surface-3: #1e2935;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+
+  /* Ink */
+  --color-ink: #e8edf2;
+  --color-ink-2: #a9b4c0;
+  --color-muted: #7d8794;
+
+  /* Layer identity (categorical slots 1-5, validated adjacent on #111821) */
+  --color-scraper: #3987e5;
+  --color-worker: #d95926;
+  --color-database: #199e70;
+  --color-api: #c98500;
+  --color-interface: #d55181;
+
+  /* Status (never reused as series colors; always paired with icon + label) */
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-critical: #d03b3b;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-page);
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: rgb(57 135 229 / 0.35);
+  }
+  :focus-visible {
+    outline: 2px solid #e8edf2;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* Faint blueprint grid behind hero areas */
+.blueprint {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Show code exactly as written: no <=> or -> ligatures */
+.font-mono,
+code,
+pre {
+  font-variant-ligatures: none;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Markdown answers in the chat */
+.prose-chat p {
+  margin: 0.5rem 0;
+}
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li {
+  margin: 0.2rem 0;
+}
+.prose-chat strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.prose-chat code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-surface-3);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+.prose-chat > :first-child {
+  margin-top: 0;
+}
+.prose-chat > :last-child {
+  margin-bottom: 0;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.caret::after {
+  content: '▍';
+  margin-left: 2px;
+  color: var(--color-interface);
+  animation: caret 1s steps(1) infinite;
+}
+
+/* Story step progress and the pipeline map's moving flow */
+@keyframes story-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes flow-dash {
+  to {
+    background-position: 16px 0;
+  }
+}
+.flow-dash {
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  background-size: 8px 2px;
+  animation: flow-dash 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret::after,
+  .flow-dash {
+    animation: none;
+  }
+}
