@@ -73,7 +73,7 @@ const TABLES: { name: string; writer: string; color: string; cols: Col[] }[] = [
       { name: 'content', type: 'text', note: 'the passage' },
       { name: 'content_type', type: 'varchar' },
       { name: 'metadata_', type: 'jsonb' },
-      { name: 'embedding', type: `vector(${s.meta.embeddingDims})`, note: 'ivfflat, cosine' },
+      { name: 'embedding', type: `vector(${s.meta.embeddingDims})`, note: 'HNSW, cosine' },
     ],
   },
   {
@@ -190,10 +190,11 @@ WHERE d.id = :passage_id;`}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Finding tone="info" title="Exact search at this size">
                 With {fmt.format(s.stages.documents.rows)} vectors Postgres scans them all: exact and cheaper than the
-                ivfflat index, so recall is 100%.
+                HNSW index, so recall is 100%.
               </Finding>
-              <Finding tone="warning" title="The vector index needs a rebuild path">
-                ivfflat is built on the empty table. At scale it should be rebuilt after loading, or replaced with HNSW.
+              <Finding tone="fixed" title="An index that needs no rebuild">
+                The old ivfflat index was built on the empty table, and with the wrong distance, so search could never
+                use it. It is now HNSW (cosine), which needs no data to build and takes over as the table grows.
               </Finding>
               <Finding tone="info" title="JSONB for evolving stages">
                 Raw and processed records keep their nested shape, so the schema stays stable while the parser evolves. A

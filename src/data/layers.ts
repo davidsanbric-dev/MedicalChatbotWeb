@@ -80,7 +80,7 @@ export const LAYERS: Layer[] = [
     path: '/database',
     repo: { name: 'MedicalChatbotAPI', url: 'https://github.com/davidsanbric-dev/MedicalChatbotAPI' },
     color: '#199e70',
-    stack: ['PostgreSQL 15', 'pgvector', 'JSONB', 'ivfflat (cosine)', 'Docker Compose'],
+    stack: ['PostgreSQL 15', 'pgvector', 'JSONB', 'HNSW (cosine)', 'Docker Compose'],
   },
   {
     id: 'api',
