@@ -62,7 +62,9 @@ docker run -p 8504:80 -e API_UPSTREAM=https://<api-host> medical-rag-frontend
 
 The image is a two-stage build: Bun installs the dependencies from `bun.lock` and builds the app, then `nginx:alpine` serves it. The official nginx image renders `nginx/default.conf.template` with `envsubst` at startup, so `API_UPSTREAM` is set per deployment without rebuilding. The proxy disables buffering so SSE tokens arrive immediately, and unknown paths fall back to `index.html` for client-side routes.
 
-On Dokploy, `API_UPSTREAM` can be the API's public URL or its internal service URL on the shared Docker network.
+On Dokploy, `API_UPSTREAM` can be the API's public URL or its internal service URL on the shared Docker network. The internal URL is better: through the public URL, the API can't see who the visitor is (see the API README, "Rate Limiting").
+
+nginx also rate limits `/_api/` per visitor, as a defence in front of the API's own limits: 10 requests/s for any API call, and 12/min for chat with bursts of up to 7. The visitor's address comes from `X-Forwarded-For`, trusted only from private (Docker network) addresses. Rejections are JSON `429` responses with a `detail`, like the API's own, so the chat shows them.
 
 ## The data snapshot
 

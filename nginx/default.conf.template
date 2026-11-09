@@ -1,11 +1,41 @@
+# --- Rate limiting: defence in depth in front of the API ---
+# The API enforces its own, stricter chat limits with friendlier messages; these
+# looser ones stop floods before they reach it, and keep working even when the
+# API can't tell visitors apart (e.g. when API_UPSTREAM is its public URL).
+# Chat requests: 12/min per client (bursts of up to 7 pass at once).
+map $uri $chat_limit_key {
+    ~^/_api/chat/  $binary_remote_addr;
+    default        "";
+}
+limit_req_zone $chat_limit_key     zone=chat:10m rate=12r/m;
+# Any API request (insights, health, chat): 10/s per client.
+limit_req_zone $binary_remote_addr zone=api:10m  rate=10r/s;
+
 server {
     listen 80;
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
 
+    # Behind Traefik, the direct peer is the proxy. Trust X-Forwarded-For only
+    # from private (Docker network) addresses and take the rightmost address
+    # that isn't one, so entries a client forges on the left are ignored.
+    set_real_ip_from 10.0.0.0/8;
+    set_real_ip_from 172.16.0.0/12;
+    set_real_ip_from 192.168.0.0/16;
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+
     # Same-origin proxy to the FastAPI service, so the browser never needs CORS.
     location /_api/ {
+        limit_req zone=api burst=20 nodelay;
+        limit_req zone=chat burst=6 nodelay;
+        limit_req_status 429;
+        # nginx's own rejections answer like the API does ({"detail": ...}), so
+        # the chat can show them. The API's 429s pass through untouched, since
+        # upstream errors aren't intercepted.
+        error_page 429 = @rate_limited;
+
         proxy_pass ${API_UPSTREAM}/;
         proxy_http_version 1.1;
         proxy_ssl_server_name on;
@@ -17,6 +47,12 @@ server {
         proxy_buffering off;
         proxy_cache off;
         proxy_read_timeout 180s;
+    }
+
+    location @rate_limited {
+        default_type application/json;
+        add_header Retry-After 10 always;
+        return 429 '{"detail":"Too many requests. Please wait a moment and try again."}';
     }
 
     location /assets/ {

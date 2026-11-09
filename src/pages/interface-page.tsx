@@ -139,6 +139,7 @@ if (parsed.success) yield parsed.data;`}
               <CodeBlock
                 label="nginx/default.conf.template (excerpt)"
                 code={`location /_api/ {
+    limit_req zone=chat burst=6 nodelay;   # per visitor, before the API's own limits
     proxy_pass \${API_UPSTREAM}/;
     proxy_buffering off;      # SSE: forward tokens immediately
 }
@@ -152,6 +153,7 @@ location / {
                   any API.
                 </p>
                 <p>The browser only talks to its own origin: no CORS, and no API URL in the bundle.</p>
+                <p>nginx also rate limits each visitor, so floods stop before they reach the API.</p>
                 <p>It replaces the first Streamlit prototype, which proved the pipeline end to end.</p>
               </div>
             </div>
