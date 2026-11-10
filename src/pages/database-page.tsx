@@ -188,7 +188,7 @@ WHERE d.id = :passage_id;`}
         {
           id: 'notes',
           label: 'Design notes',
-          source: 'app/core/database.py',
+          source: 'app/core/models.py',
           content: (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Finding tone="info" title="Exact search at this size">
