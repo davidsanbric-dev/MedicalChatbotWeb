@@ -144,7 +144,8 @@ data: {"answer": "Acne is usually treated with…"}`}
                 neighbours (try the football question).
               </Finding>
               <Finding tone="good" title="Provider failover">
-                <Code>ChatOpenAI(...).with_fallbacks([gemini])</Code> retries a failed OpenRouter call on Gemini.
+                <Code>ChatOpenAI(...).with_fallbacks([gemini])</Code> sends a failed OpenRouter call straight to Gemini,
+                without first retrying a busy free model.
               </Finding>
               <Finding tone="info" title="Two LLM calls per turn">
                 Rephrasing makes follow-ups work and turns questions into English, at the cost of a round-trip. Stage
