@@ -13,6 +13,7 @@ const MeaningMap = lazy(() => import('@/components/three/meaning-map'));
 const s = snapshot;
 const listCount = s.chunkTypes.find((t) => t.type === 'list_item')?.count ?? 0;
 const afterAcne = s.sample.documents.find((d) => d.contentType === 'list_item')?.content ?? '';
+const renamedConditions = s.conditions.filter((c) => c.slug !== c.name.toLowerCase()).length;
 
 // Exactly what the v5 chunker produced for the same list (f"{heading}: {', '.join(str(item) ...)}").
 const BEFORE_ACNE =
@@ -65,6 +66,7 @@ export function WorkerPage() {
         {
           id: 'stages',
           label: 'One record, three forms',
+          source: 'services/processing.py',
           content: (
             <>
               <div className="mb-4">
@@ -113,6 +115,7 @@ export function WorkerPage() {
         {
           id: 'chunks',
           label: 'Chunk stats',
+          source: 'services/chunking.py',
           content: (
             <Card className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -147,11 +150,13 @@ export function WorkerPage() {
         {
           id: 'fixes',
           label: 'Audit & fixes',
+          source: 'tests/test_processing.py',
           content: (
             <>
               <p className="mb-4 max-w-3xl text-sm leading-relaxed text-ink-2">
-                Auditing this data surfaced four worker bugs, fixed in processor <Code>v6</Code> and covered by unit tests
-                (<Code>tests/test_chunking.py</Code>). Re-running the worker migrates older rows instead of duplicating them.
+                Auditing this data surfaced four worker bugs, fixed in processor <Code>v6</Code>; a later code audit fixed
+                two more. Unit tests cover the rules (<Code>tests/</Code>), and re-running the worker migrates older rows
+                instead of duplicating them.
               </p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Finding tone="fixed" title="Re-runs no longer duplicate">
@@ -169,6 +174,15 @@ export function WorkerPage() {
                 <Finding tone="fixed" title="Text is normalized">
                   {s.audit.nbspRaw} non-breaking spaces stay in <Code>raw_data</Code>; {s.audit.chunksWithNbsp} reach the
                   embeddings (NFKC).
+                </Finding>
+                <Finding tone="fixed" title="Slug or name, both work">
+                  <Code>--list-conditions</Code> printed page slugs that <Code>--condition</Code> did not accept for{' '}
+                  {renamedConditions} of {s.audit.records} conditions (<Code>allergies</Code> vs “Allergy”). Either form
+                  works now, and an unknown one is an error instead of a silent no-op.
+                </Finding>
+                <Finding tone="fixed" title="Same output, half the code">
+                  Unused helpers and queries were removed. Every record, passage and embedding was then re-checked: identical
+                  on all {s.audit.records} pages.
                 </Finding>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -191,17 +205,18 @@ export function WorkerPage() {
         {
           id: 'run',
           label: 'Run it',
+          source: 'main.py',
           content: (
             <CodeBlock
               label="shell"
               code={`# process what is new, then embed what has no chunks yet
 uv run python main.py
 
-# one condition / rebuild its chunks and embeddings
-uv run python main.py --condition Acne
+# one condition, by page slug or by name / rebuild its passages
+uv run python main.py --condition acid-reflux-gerd
 uv run python main.py --condition Acne --reembed
 
-# unit tests for the chunking rules
+# unit tests for the processing and chunking rules
 uv run pytest`}
             />
           ),

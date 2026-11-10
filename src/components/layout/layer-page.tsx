@@ -1,6 +1,6 @@
-import { Link } from '@tanstack/react-router';
-import { ArrowLeft, ArrowRight, ChevronDown, Wrench } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Link, useLocation } from '@tanstack/react-router';
+import { ArrowLeft, ArrowRight, ChevronDown, ExternalLink, Wrench } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { StoryScene, type StoryStep } from '@/components/story/story-scene';
 import { GithubIcon } from '@/components/ui/github-icon';
 import { Pill, Tabs } from '@/components/ui/primitives';
@@ -8,9 +8,12 @@ import { LAYERS, SOURCE, layerById, type Layer, type LayerId } from '@/data/laye
 import { PipelineMap } from './pipeline-map';
 
 export interface DetailSection {
+  /** Also the tab's address: /scraper#mapping opens "Under the hood" on this tab. */
   id: string;
   label: string;
   content: ReactNode;
+  /** The code behind the tab, as a path inside the station's repository. */
+  source?: string;
 }
 
 /**
@@ -39,6 +42,7 @@ export function LayerPage({
   const i = LAYERS.indexOf(layer);
   const prev = LAYERS[i - 1];
   const next = LAYERS[i + 1];
+  const hash = useLocation({ select: (location) => location.hash });
 
   useEffect(() => {
     document.title = `${layer.title} · Medical RAG pipeline`;
@@ -73,7 +77,7 @@ export function LayerPage({
 
         {children}
 
-        <UnderTheHood layer={layer} sections={details} />
+        <UnderTheHood key={hash} layer={layer} sections={details} linkedTab={hash} />
 
         <nav aria-label="Pipeline" className="grid grid-cols-1 gap-3 py-10 sm:grid-cols-2">
           {prev ? (
@@ -103,11 +107,19 @@ export function Showcase({ title, lead, children }: { title: string; lead?: Reac
   );
 }
 
-function UnderTheHood({ layer, sections }: { layer: Layer; sections: DetailSection[] }) {
-  const [tab, setTab] = useState(sections[0]?.id ?? '');
+/** Opens on the tab named in the URL hash, so code comments and READMEs can link straight to it. */
+function UnderTheHood({ layer, sections, linkedTab }: { layer: Layer; sections: DetailSection[]; linkedTab: string }) {
+  const linkedId = sections.find((s) => s.id === linkedTab)?.id;
+  const [tab, setTab] = useState(linkedId ?? sections[0]?.id ?? '');
   const active = sections.find((s) => s.id === tab) ?? sections[0];
+  const ref = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    if (linkedId) ref.current?.scrollIntoView({ block: 'start' });
+  }, [linkedId]);
+
   return (
-    <details className="group rounded-2xl border border-line bg-surface">
+    <details ref={ref} open={Boolean(linkedId)} className="group scroll-mt-20 rounded-2xl border border-line bg-surface">
       <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl px-5 py-4 hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-surface-3">
           <Wrench className="size-4 text-ink-2" aria-hidden />
@@ -139,6 +151,15 @@ function UnderTheHood({ layer, sections }: { layer: Layer; sections: DetailSecti
         <div className="mt-5">
           <Tabs label="Technical details" value={active.id} onChange={setTab} options={sections.map((s) => ({ value: s.id, label: s.label }))} />
         </div>
+        {active.source && layer.repo.url && (
+          <a
+            href={`${layer.repo.url}/blob/main/${active.source}`}
+            className="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-muted hover:text-ink"
+          >
+            <GithubIcon className="size-3.5" /> {active.source}
+            <ExternalLink className="size-3" />
+          </a>
+        )}
         <div className="mt-5">{active.content}</div>
       </div>
     </details>

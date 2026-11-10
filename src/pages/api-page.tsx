@@ -41,7 +41,7 @@ const STEPS: StoryStep[] = [
 ];
 
 const ENDPOINTS = [
-  { method: 'POST', path: '/chat/stream', out: 'SSE: stages, tokens, final answer (429 when rate limited)' },
+  { method: 'POST', path: '/chat/stream', out: 'SSE: stages, tokens, final answer (422 invalid, 429 rate limited)' },
   { method: 'POST', path: '/chat/', out: '{ response }' },
   { method: 'GET', path: '/insights/condition-names', out: 'string[]' },
   { method: 'GET', path: '/insights/top-symptoms?top_n=10', out: '[symptom, conditions][]' },
@@ -88,6 +88,7 @@ export function ApiPage() {
         {
           id: 'rerank',
           label: 'Re-rank scores',
+          source: 'app/services/retrieval.py',
           content: (
             <>
               <p className="mb-3 text-sm text-ink-2">
@@ -101,6 +102,7 @@ export function ApiPage() {
         {
           id: 'endpoints',
           label: 'Endpoints & streaming',
+          source: 'app/routes/chat.py',
           content: (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
               <Card className="overflow-x-auto">
@@ -134,6 +136,7 @@ data: {"answer": "Acne is usually treated with…"}`}
         {
           id: 'notes',
           label: 'Design notes',
+          source: 'app/services/chat.py',
           content: (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Finding tone="good" title="Off-topic questions retrieve nothing">
@@ -144,12 +147,21 @@ data: {"answer": "Acne is usually treated with…"}`}
                 <Code>ChatOpenAI(...).with_fallbacks([gemini])</Code> retries a failed OpenRouter call on Gemini.
               </Finding>
               <Finding tone="info" title="Two LLM calls per turn">
-                Rephrasing makes follow-ups work and turns questions into English, but adds a round-trip. Both calls are
-                awaited, so one visitor’s wait never stalls another’s; stage events keep the UI informative meanwhile.
+                Rephrasing makes follow-ups work and turns questions into English, at the cost of a round-trip. Stage
+                events keep the chat informative meanwhile.
+              </Finding>
+              <Finding tone="fixed" title="Nobody waits for someone else">
+                Both LLM calls are awaited and the search runs in a worker thread, so one visitor’s question never pauses
+                another’s stream.
               </Finding>
               <Finding tone="fixed" title="Chat is rate limited">
                 Each visitor gets 6 questions a minute and 60 a day, with 500 a day in total; past that the API answers{' '}
-                <Code>429</Code> with a <Code>Retry-After</Code>. Sign-in is still left out of the demo.
+                <Code>429</Code> with a <Code>Retry-After</Code>. Questions must be 1–1000 characters. Sign-in is still
+                left out of the demo.
+              </Finding>
+              <Finding tone="fixed" title="Errors stay private">
+                When something fails, the visitor gets a plain message. Database and provider details only reach the
+                server log.
               </Finding>
             </div>
           ),

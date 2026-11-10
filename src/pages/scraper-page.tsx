@@ -21,7 +21,7 @@ const STEPS: StoryStep[] = [
   {
     title: 'Visit one at a time',
     term: 'polite crawling',
-    caption: 'Pages are downloaded one by one with a short pause, so the website is never overloaded.',
+    caption: 'Pages are downloaded one by one with a short pause, so the website is never overloaded. A hiccup is simply retried.',
   },
   {
     title: 'Pick out what matters',
@@ -92,6 +92,7 @@ export function ScraperPage() {
         {
           id: 'mapping',
           label: 'HTML → JSON',
+          source: 'jobs/parser.py',
           content: (
             <Card className="divide-y divide-line">
               {MAPPING.map((m) => (
@@ -107,6 +108,7 @@ export function ScraperPage() {
         {
           id: 'record',
           label: 'Raw record',
+          source: 'jobs/persistence.py',
           content: (
             <>
               <p className="mb-3 text-sm text-ink-2">
@@ -133,11 +135,12 @@ export function ScraperPage() {
         {
           id: 'quality',
           label: 'Data quality',
+          source: 'tests/test_parser.py',
           content: (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Finding tone="good" title="Every page parsed">
                 {s.audit.missingSymptoms} of {s.audit.records} records lack a symptom list. The parser reads both the
-                original page layout and the site’s 2026 redesign.
+                original page layout and the site’s 2026 redesign, and unit tests cover both.
               </Finding>
               <Finding tone="fixed" title="Two empty fields retired">
                 <Code>introduction</Code> and <Code>faqs</Code> were empty in all {s.audit.records} records: the pages
@@ -147,9 +150,9 @@ export function ScraperPage() {
                 {s.audit.nbspRaw} non-breaking spaces in {s.audit.recordsWithNbsp} records are kept here on purpose; the
                 worker normalizes them.
               </Finding>
-              <Finding tone="info" title="No automatic retry">
-                A failed page is skipped, and the run ends by listing what failed. Re-running fills the gap, because
-                saved pages are skipped.
+              <Finding tone="fixed" title="Retries, then re-runs">
+                A failed request is retried up to 3 times with growing pauses, honoring the site’s Retry-After. Anything
+                still failing is listed at the end, and re-running fills the gap, because saved pages are skipped.
               </Finding>
             </div>
           ),
@@ -157,6 +160,7 @@ export function ScraperPage() {
         {
           id: 'run',
           label: 'Run it',
+          source: 'main.py',
           content: (
             <CodeBlock
               label="shell"

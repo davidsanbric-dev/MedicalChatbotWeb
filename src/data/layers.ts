@@ -48,7 +48,7 @@ export const LAYERS: Layer[] = [
     path: '/scraper',
     repo: { name: 'MedicalChatbotScraper', url: 'https://github.com/davidsanbric-dev/MedicalChatbotScraper' },
     color: '#3987e5',
-    stack: ['Python 3.12', 'requests', 'BeautifulSoup4', 'SQLAlchemy', 'Docker'],
+    stack: ['Python 3.12', 'requests', 'BeautifulSoup4', 'SQLAlchemy', 'pytest', 'Docker'],
   },
   {
     id: 'worker',
@@ -96,7 +96,7 @@ export const LAYERS: Layer[] = [
     path: '/api',
     repo: { name: 'MedicalChatbotAPI', url: 'https://github.com/davidsanbric-dev/MedicalChatbotAPI' },
     color: '#c98500',
-    stack: ['FastAPI', 'LangChain', 'fastembed cross-encoder', 'OpenRouter → Gemini', 'SSE'],
+    stack: ['FastAPI', 'LangChain', 'fastembed cross-encoder', 'OpenRouter → Gemini', 'SSE', 'pytest'],
   },
   {
     id: 'interface',

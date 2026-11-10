@@ -114,6 +114,7 @@ export function DatabasePage() {
         {
           id: 'schema',
           label: 'Tables',
+          source: 'app/core/models.py',
           content: (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               {TABLES.map((t) => (
@@ -162,6 +163,7 @@ export function DatabasePage() {
         {
           id: 'sql',
           label: 'SQL',
+          source: 'app/repositories/documents.py',
           content: (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <CodeBlock
@@ -186,6 +188,7 @@ WHERE d.id = :passage_id;`}
         {
           id: 'notes',
           label: 'Design notes',
+          source: 'app/core/database.py',
           content: (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Finding tone="info" title="Exact search at this size">

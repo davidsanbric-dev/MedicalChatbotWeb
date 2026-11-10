@@ -23,6 +23,18 @@ The pipeline has four repositories:
 | Database + RAG API | [MedicalChatbotAPI](https://github.com/davidsanbric-dev/MedicalChatbotAPI) |
 | Interface | **MedicalChatbotWeb** (this one) |
 
+## Linking into a page
+
+Every **Under the hood** tab has its own address. `/scraper#mapping`, for example, opens the scraper page with the HTML → JSON table showing. The service READMEs and code comments link to these addresses, and each tab links back to the file behind it on GitHub.
+
+| Page | Tabs |
+| --- | --- |
+| `/scraper` | `#mapping` · `#record` · `#dataset` · `#quality` · `#run` |
+| `/worker` | `#stages` · `#chunks` · `#fixes` · `#run` |
+| `/database` | `#schema` · `#explorer` · `#sql` · `#notes` |
+| `/api` | `#rerank` · `#endpoints` · `#notes` · `#run` |
+| `/interface` | `#tools` · `#snapshot` · `#streaming` · `#deploy` · `#run` |
+
 ## Stack
 
 | Concern | Tool |

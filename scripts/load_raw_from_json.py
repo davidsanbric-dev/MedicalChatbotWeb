@@ -32,8 +32,8 @@ sys.path.insert(0, str(WORKER_DIR))
 
 from sqlalchemy import text  # noqa: E402
 
-from db.database import Base, SessionLocal, engine  # noqa: E402
-from db.models import RawData  # noqa: E402
+from db.database import SessionLocal, engine  # noqa: E402
+from db.models import Base, RawData  # noqa: E402
 
 
 def main(scraped_dir: Path) -> None:

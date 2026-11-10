@@ -57,6 +57,7 @@ export function InterfacePage() {
         {
           id: 'tools',
           label: 'One tool per job',
+          source: 'package.json',
           content: (
             <Card className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -77,6 +78,7 @@ export function InterfacePage() {
         {
           id: 'snapshot',
           label: 'Data snapshot',
+          source: 'scripts/export_snapshot.py',
           content: (
             <>
               <StepFlow
@@ -102,6 +104,7 @@ export function InterfacePage() {
         {
           id: 'streaming',
           label: 'Streaming',
+          source: 'src/lib/api.ts',
           content: (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <CodeBlock
@@ -134,6 +137,7 @@ if (parsed.success) yield parsed.data;`}
         {
           id: 'deploy',
           label: 'Deployment',
+          source: 'nginx/default.conf.template',
           content: (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <CodeBlock
