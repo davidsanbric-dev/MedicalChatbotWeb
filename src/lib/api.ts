@@ -41,8 +41,8 @@ export const fetchTopSymptoms = (topN: number, signal?: AbortSignal) =>
   getJson(`/insights/top-symptoms?top_n=${topN}`, TopSymptoms, signal);
 
 /**
- * Events emitted by POST /chat/stream (see ChatService.stream_conversational_response
- * in medical_conditions_api). Every `data:` line is validated against this union.
+ * Events emitted by POST /chat/stream (stream_reply in medical_conditions_api's
+ * app/services/chat.py). Every `data:` line is validated against this union.
  */
 export const ChatEvent = z.union([
   z.object({ stage: z.enum(['rephrasing', 'retrieving']) }),
@@ -53,16 +53,37 @@ export const ChatEvent = z.union([
 ]);
 export type ChatEvent = z.infer<typeof ChatEvent>;
 
+export const AgentTool = z.enum(['search_knowledge_base', 'list_conditions', 'request_human_handoff']);
+export type AgentTool = z.infer<typeof AgentTool>;
+
+/** Events emitted by POST /agent/stream (stream_run in app/services/agent.py). */
+export const AgentEvent = z.union([
+  z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) }),
+  z.object({ handoff: z.object({ id: z.string(), urgency: z.enum(['routine', 'urgent', 'emergency']) }) }),
+  z.object({ answer: z.string(), sources: z.array(z.string()) }),
+  z.object({ error: z.string() }),
+]);
+export type AgentEvent = z.infer<typeof AgentEvent>;
+
+/** One question in a conversation: `sessionId` keys the API's memory of it. */
+export const streamChat = (query: string, sessionId: string, signal?: AbortSignal) =>
+  streamEvents('/chat/stream', ChatEvent, query, sessionId, signal);
+
+export const streamAgent = (query: string, sessionId: string, signal?: AbortSignal) =>
+  streamEvents('/agent/stream', AgentEvent, query, sessionId, signal);
+
 /**
  * POST a question and yield validated SSE events as they arrive.
  * Uses fetch + ReadableStream because EventSource cannot send a POST body.
  */
-export async function* streamChat(
+async function* streamEvents<T>(
+  path: string,
+  schema: z.ZodType<T>,
   query: string,
   sessionId: string,
   signal?: AbortSignal,
-): AsyncGenerator<ChatEvent> {
-  const res = await fetch(`${API_BASE}/chat/stream`, {
+): AsyncGenerator<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify({ query, session_id: sessionId }),
@@ -87,7 +108,7 @@ export async function* streamChat(
       buffer = buffer.slice(boundary + 2);
       for (const line of frame.split('\n')) {
         if (!line.startsWith('data:')) continue;
-        const parsed = ChatEvent.safeParse(JSON.parse(line.slice(5).trim()));
+        const parsed = schema.safeParse(JSON.parse(line.slice(5).trim()));
         if (parsed.success) yield parsed.data;
       }
     }

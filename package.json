@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "sync:evals": "cp ../medical_conditions_api/evals/results/retrieval.json ../medical_conditions_api/evals/results/agent.json src/data/evaluation/"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

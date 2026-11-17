@@ -32,7 +32,7 @@ Every **Under the hood** tab has its own address. `/scraper#mapping`, for exampl
 | `/scraper` | `#mapping` · `#record` · `#dataset` · `#quality` · `#run` |
 | `/worker` | `#stages` · `#chunks` · `#fixes` · `#run` |
 | `/database` | `#schema` · `#explorer` · `#sql` · `#notes` |
-| `/api` | `#rerank` · `#endpoints` · `#notes` · `#run` |
+| `/api` | `#rerank` · `#endpoints` · `#agent` · `#evaluation` · `#notes` · `#run` |
 | `/interface` | `#tools` · `#snapshot` · `#streaming` · `#deploy` · `#run` |
 
 ## Stack
@@ -106,9 +106,19 @@ docker stop medsnap-pg
 - a data-quality audit;
 - a sample record traced through all three tables;
 - a **3-D t-SNE map** of every chunk embedding. The sample questions are fitted with it, so each question lands next to the passages it retrieves. The map is then rotated onto its principal axes so it sits wide in the horizontal scenes;
-- retrieval traces that reproduce the API's retrieval: top-20 cosine search, `ms-marco-MiniLM` re-rank, threshold −2.0, top 5.
+- retrieval traces that reproduce the API's retrieval: top-20 cosine search, `ms-marco-MiniLM` re-rank, threshold −3.0, top 5.
 
 Both scripts declare their dependencies inline (PEP 723), so `uv run` needs no separate virtual environment. The app validates the snapshot against a zod schema at startup.
+
+## The evaluation results
+
+The API page's "Tested with 92 questions" and "It can also act" sections, and its Evaluation tab, read `src/data/evaluation/retrieval.json` and `agent.json`. These are the API's own evaluation results, also generated and never hand-edited. After `make eval-retrieval` and `make eval-agent` in `medical_conditions_api`, copy them with:
+
+```bash
+bun run sync:evals
+```
+
+`src/data/evaluation.ts` validates both files against zod schemas at startup, like the snapshot.
 
 ## Project layout
 
@@ -116,7 +126,8 @@ Both scripts declare their dependencies inline (PEP 723), so `uv run` needs no s
 src/
   data/layers.ts            the stations: names, plain-language copy, colors, repos
   data/snapshot.ts          zod schema + typed snapshot access
-  lib/api.ts                REST calls and the SSE stream reader
+  data/evaluation.ts        the API's evaluation results (retrieval + agent), validated
+  lib/api.ts                REST calls and the SSE stream reader (chat and agent)
   stores/                   zustand stores (chat, home hover link)
   components/layout/        app shell, pipeline map, the LayerPage template
   components/story/         step player that drives each 3D scene

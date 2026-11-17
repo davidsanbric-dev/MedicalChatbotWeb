@@ -25,7 +25,7 @@ What it produces:
   (PCA variance reported too)
 - retrieval traces for sample questions, reproducing the API's retrieval
   (medical_conditions_api/app/services/retrieval.py):
-  top-20 cosine search -> cross-encoder re-rank -> threshold -2.0 -> top 5
+  top-20 cosine search -> cross-encoder re-rank -> threshold -3.0 -> top 5
   (the API's LLM query-rephrasing step is skipped: the sample questions are
   already standalone)
 
@@ -54,7 +54,7 @@ OUT = Path(__file__).resolve().parents[1] / "src" / "data" / "snapshot.json"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 RERANK_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2"
 TOP_K = 20
-RELEVANCE_THRESHOLD = -2.0
+RELEVANCE_THRESHOLD = -3.0
 TOP_N = 5
 
 SAMPLE_CONDITION = "Acne"
@@ -331,7 +331,8 @@ def main() -> None:
         "stages": stages,
         "chunkTypes": chunk_types,
         "conditions": conditions,
-        "topSymptoms": symptom_counter.most_common(25),
+        # Ties alphabetically, like the API's /insights/top-symptoms, so re-exports are stable.
+        "topSymptoms": sorted(symptom_counter.items(), key=lambda pair: (-pair[1], pair[0]))[:25],
         "audit": {
             "records": len(joined),
             "nbspRaw": audit_nbsp_raw,

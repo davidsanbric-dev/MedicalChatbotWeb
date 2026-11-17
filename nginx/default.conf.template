@@ -2,13 +2,14 @@
 # The API enforces its own, stricter chat limits with friendlier messages; these
 # looser ones stop floods before they reach it, and keep working even when the
 # API can't tell visitors apart (e.g. when API_UPSTREAM is its public URL).
-# Chat requests: 12/min per client (bursts of up to 7 pass at once).
+# Chat and agent requests (both call the LLM): 12/min per client, together
+# (bursts of up to 7 pass at once).
 map $uri $chat_limit_key {
-    ~^/_api/chat/  $binary_remote_addr;
-    default        "";
+    ~^/_api/(chat|agent)/  $binary_remote_addr;
+    default                "";
 }
 limit_req_zone $chat_limit_key     zone=chat:10m rate=12r/m;
-# Any API request (insights, health, chat): 10/s per client.
+# Any API request (insights, health, chat, agent): 10/s per client.
 limit_req_zone $binary_remote_addr zone=api:10m  rate=10r/s;
 
 server {
@@ -43,7 +44,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # /chat/stream is Server-Sent Events: forward tokens as they arrive.
+        # /chat/stream and /agent/stream are Server-Sent Events: forward events as they arrive.
         proxy_buffering off;
         proxy_cache off;
         proxy_read_timeout 180s;

@@ -114,7 +114,8 @@ export function InterfacePage() {
   .getReader();
 
 // split SSE frames, validate each event
-const parsed = ChatEvent.safeParse(
+// (schema = ChatEvent or AgentEvent)
+const parsed = schema.safeParse(
   JSON.parse(line.slice(5).trim()),
 );
 if (parsed.success) yield parsed.data;`}
@@ -129,6 +130,11 @@ if (parsed.success) yield parsed.data;`}
                 </Finding>
                 <Finding tone="info" title="Cancellable">
                   An <Code>AbortController</Code> backs Stop and New chat.
+                </Finding>
+                <Finding tone="info" title="Two answer modes, one reader">
+                  Classic mode reads <Code>/chat/stream</Code> (stages, then tokens); Agent mode reads{' '}
+                  <Code>/agent/stream</Code> (tool calls, a handoff, then the answer with its sources). Both share the
+                  session, so switching keeps the conversation.
                 </Finding>
               </div>
             </div>

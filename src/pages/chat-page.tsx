@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { clsx } from 'clsx';
-import { ArrowUp, Info, Loader2, RotateCcw, Search, Square, Stethoscope, User } from 'lucide-react';
+import { ArrowUp, BookOpen, Headset, Info, ListChecks, Loader2, RotateCcw, Search, Square, Stethoscope, User, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,16 +10,39 @@ import { BarList } from '@/components/viz/bar-list';
 import { LAYERS } from '@/data/layers';
 import { snapshot } from '@/data/snapshot';
 import { fetchConditionNames, fetchTopSymptoms } from '@/lib/api';
-import { useChatStore, type ChatMessage } from '@/stores/chat-store';
+import { useChatStore, type ChatMessage, type ChatMode, type ToolCall } from '@/stores/chat-store';
 
-const SUGGESTIONS = [
-  'What are the symptoms of asthma?',
-  'How is acne treated?',
-  'Can an online doctor help with a UTI?',
-  'What helps with insomnia?',
-];
+const SUGGESTIONS: Record<ChatMode, string[]> = {
+  rag: [
+    'What are the symptoms of asthma?',
+    'How is acne treated?',
+    'Can an online doctor help with a UTI?',
+    'What helps with insomnia?',
+  ],
+  agent: [
+    'Why does my heel hurt in the morning?',
+    'What conditions can you help me with?',
+    'I want to talk to a real doctor, please.',
+    '¿Cuáles son los síntomas de la migraña?',
+  ],
+};
+
+/** What each agent tool is, in plain words. */
+const TOOL_INFO: Record<string, { label: string; doing: string; icon: typeof Wrench }> = {
+  search_knowledge_base: { label: 'Searched the knowledge base', doing: 'Searching the knowledge base…', icon: BookOpen },
+  list_conditions: { label: 'Listed the conditions it covers', doing: 'Listing the conditions it covers…', icon: ListChecks },
+  request_human_handoff: { label: 'Asked a person to follow up', doing: 'Contacting the care team…', icon: Headset },
+};
+
+function toolInfo(name: string) {
+  return TOOL_INFO[name] ?? { label: name, doing: `Using ${name}…`, icon: Wrench };
+}
 
 function stageText(m: ChatMessage) {
+  if (m.tools !== undefined) {
+    const lastTool = m.tools.at(-1);
+    return lastTool ? toolInfo(lastTool.name).doing : 'Deciding what to do…';
+  }
   switch (m.stage) {
     case 'rephrasing':
       return 'Understanding your question…';
@@ -35,7 +58,7 @@ function stageText(m: ChatMessage) {
 }
 
 export function ChatPage() {
-  const { messages, isStreaming, send, stop, reset } = useChatStore();
+  const { messages, isStreaming, send, stop, reset, mode, setMode } = useChatStore();
   const [draft, setDraft] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -73,16 +96,18 @@ export function ChatPage() {
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-ink">Medical conditions assistant</h1>
             <p className="truncate text-xs text-muted">
-              Answers grounded in {snapshot.conditions.length} condition pages · retrieval + re-ranking + LLM
+              Answers grounded in {snapshot.conditions.length} condition pages ·{' '}
+              {mode === 'agent' ? 'an AI agent that picks its own tools' : 'retrieval + re-ranking + LLM'}
             </p>
           </div>
+          <ModeSwitch mode={mode} onChange={setMode} disabled={isStreaming} />
           <button
             type="button"
             onClick={reset}
             disabled={messages.length === 0 && !isStreaming}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
           >
-            <RotateCcw className="size-3.5" /> New chat
+            <RotateCcw className="size-3.5" /> <span className="hidden sm:inline">New chat</span>
           </button>
         </header>
 
@@ -97,7 +122,7 @@ export function ChatPage() {
           aria-busy={isStreaming}
         >
           {messages.length === 0 ? (
-            <EmptyState onAsk={ask} />
+            <EmptyState mode={mode} onAsk={ask} />
           ) : (
             <ol className="mx-auto max-w-3xl space-y-6">
               {messages.map((m) => (
@@ -166,19 +191,59 @@ export function ChatPage() {
   );
 }
 
-function EmptyState({ onAsk }: { onAsk: (q: string) => void }) {
+/** Classic RAG or the tool-calling agent; both share the conversation's memory. */
+function ModeSwitch({ mode, onChange, disabled }: { mode: ChatMode; onChange: (m: ChatMode) => void; disabled: boolean }) {
+  const options: { value: ChatMode; label: string; hint: string }[] = [
+    { value: 'rag', label: 'Classic', hint: 'Always the same four steps: rephrase, search, re-rank, answer' },
+    { value: 'agent', label: 'Agent', hint: 'The AI decides: search, list topics or hand you to a person' },
+  ];
+  return (
+    <div role="radiogroup" aria-label="Answer mode" className="ml-auto inline-flex shrink-0 rounded-lg border border-line bg-surface-2 p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={mode === o.value}
+          title={o.hint}
+          disabled={disabled}
+          onClick={() => onChange(o.value)}
+          className={clsx(
+            'rounded-md px-2.5 py-1 text-xs transition-colors disabled:opacity-50',
+            mode === o.value ? 'bg-surface-3 text-ink' : 'text-ink-2 hover:text-ink',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ mode, onAsk }: { mode: ChatMode; onAsk: (q: string) => void }) {
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center text-center">
       <span className="grid size-12 place-items-center rounded-2xl bg-interface/15">
         <Stethoscope className="size-6 text-interface" />
       </span>
-      <h2 className="mt-4 text-xl font-semibold text-ink">Ask the knowledge base</h2>
+      <h2 className="mt-4 text-xl font-semibold text-ink">
+        {mode === 'agent' ? 'Ask the agent' : 'Ask the knowledge base'}
+      </h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        Each question is rephrased, embedded, matched against {snapshot.stages.documents.rows} chunks, re-ranked and
-        answered with the best passages. Follow-up questions keep the context.
+        {mode === 'agent' ? (
+          <>
+            The AI chooses what to do: search the {snapshot.stages.documents.rows} passages, list the topics it
+            covers, or ask a person from the care team to follow up. You see each step it takes.
+          </>
+        ) : (
+          <>
+            Each question is rephrased, embedded, matched against {snapshot.stages.documents.rows} chunks, re-ranked
+            and answered with the best passages. Follow-up questions keep the context.
+          </>
+        )}
       </p>
       <div className="mt-6 grid w-full gap-2 sm:grid-cols-2">
-        {SUGGESTIONS.map((q) => (
+        {SUGGESTIONS[mode].map((q) => (
           <button
             key={q}
             type="button"
@@ -216,6 +281,7 @@ function MessageRow({ message: m }: { message: ChatMessage }) {
         <span className="sr-only">Assistant</span>
       </span>
       <div className="min-w-0 flex-1">
+        {m.tools && m.tools.length > 0 && <ToolTrail tools={m.tools} />}
         {(m.status === 'streaming' || m.passages !== undefined) && (
           <p className="mb-1.5 flex items-center gap-1.5 text-xs text-muted">
             {m.status === 'streaming' && waiting && <Loader2 className="size-3.5 animate-spin" />}
@@ -236,8 +302,52 @@ function MessageRow({ message: m }: { message: ChatMessage }) {
             <Markdown remarkPlugins={[remarkGfm]}>{m.content}</Markdown>
           </div>
         )}
+        {m.handoff && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg border border-interface/40 bg-interface/10 px-3 py-2 text-sm text-ink">
+            <Headset className="mt-0.5 size-4 shrink-0 text-interface" />
+            <span>
+              {m.handoff.urgency === 'emergency' ? 'Emergency request' : 'Request'} sent to the care team ·{' '}
+              <span className="font-mono text-xs text-ink-2">#{m.handoff.id.slice(0, 8)}</span>
+              <span className="block text-xs text-muted">Demo only: nobody is actually notified.</span>
+            </span>
+          </p>
+        )}
+        {m.sources && m.sources.length > 0 && (
+          <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            From:
+            {m.sources.map((source) => (
+              <span key={source} className="rounded-md border border-line bg-surface-2 px-2 py-0.5 text-ink-2">
+                {source}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
     </li>
+  );
+}
+
+/** The agent's steps, one chip per tool call, in the order it made them. */
+function ToolTrail({ tools }: { tools: ToolCall[] }) {
+  return (
+    <ol aria-label="Steps the agent took" className="mb-2 flex flex-wrap gap-1.5">
+      {tools.map((tool, i) => {
+        const info = toolInfo(tool.name);
+        const Icon = info.icon;
+        const query = typeof tool.args.query === 'string' ? tool.args.query : undefined;
+        return (
+          <li
+            key={i}
+            title={JSON.stringify(tool.args)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface-2 px-2 py-1 text-xs text-ink-2"
+          >
+            <Icon className="size-3.5 text-interface" />
+            {info.label}
+            {query && <span className="text-muted">“{query}”</span>}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
