@@ -24,7 +24,7 @@ What it produces:
   sample questions so each question lands next to the passages it matches
   (PCA variance reported too)
 - retrieval traces for sample questions, reproducing the API's retrieval
-  (medical_conditions_api/app/services/retrieval.py):
+  (medical_conditions_api/app/services/retrieval.py, rules in app/domain/passages.py):
   top-20 cosine search -> cross-encoder re-rank -> threshold -3.0 -> top 5
   (the API's LLM query-rephrasing step is skipped: the sample questions are
   already standalone)
@@ -50,7 +50,7 @@ from sklearn.manifold import TSNE
 
 OUT = Path(__file__).resolve().parents[1] / "src" / "data" / "snapshot.json"
 
-# Must match the API (app/core/embedding.py, app/services/retrieval.py) and the worker.
+# Must match the API (app/core/embedding.py, app/services/retrieval.py, app/domain/passages.py) and the worker.
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 RERANK_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2"
 TOP_K = 20
