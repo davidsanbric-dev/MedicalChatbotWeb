@@ -35,7 +35,7 @@ export interface Bounds {
 
 export interface SceneLabel {
   key: string;
-  /** A fixed world position, or an object to follow. */
+  /** A fixed world position, or an object to follow (the label hides while the object is invisible). */
   at: Vec3 | RefObject<THREE.Object3D | null>;
   content: ReactNode;
   /** Where the label sits relative to its anchor (default: above it). */

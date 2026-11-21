@@ -487,6 +487,7 @@ function DatabaseModel({ animate }: { animate: boolean }) {
   );
 }
 
+/** The agent: a faceted core with its three tools riding the ring around it. */
 function ApiModel({ animate }: { animate: boolean }) {
   const color = LAYERS[3].color;
   const core = useRef<THREE.Mesh>(null);
@@ -510,6 +511,16 @@ function ApiModel({ animate }: { animate: boolean }) {
         <mesh ref={ring} rotation-x={1.25}>
           <torusGeometry args={[0.7, 0.03, 12, 64]} />
           <Mat color="#ffd27a" glow={0.8} />
+          {/* The agent's three tools, carried around its core by the loop */}
+          {[0, 1, 2].map((i) => {
+            const a = (i / 3) * Math.PI * 2;
+            return (
+              <mesh key={i} position={[Math.cos(a) * 0.7, Math.sin(a) * 0.7, 0]}>
+                <sphereGeometry args={[0.075, 14, 12]} />
+                <Mat color="#fff3d6" glow={0.9} />
+              </mesh>
+            );
+          })}
         </mesh>
       </group>
     </group>

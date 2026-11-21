@@ -61,7 +61,7 @@ export default function DatabaseScene({ step }: { step: number }) {
       tag('documents', 3, 'Passages + numbers', 'documents', s.stages.documents.rows),
       tag('chat', null, 'Chat memory', 'chat_history'),
       { key: 'from', minor: true, at: [-6.4, 1.75, -0.2], content: <NeighborTag>from 2 · Worker</NeighborTag> },
-      { key: 'to', minor: true, at: [6.5, 1.75, -0.2], content: <NeighborTag>to 4 · RAG API →</NeighborTag> },
+      { key: 'to', minor: true, at: [6.5, 1.75, -0.2], content: <NeighborTag>to 4 · {LAYERS[3].name} →</NeighborTag> },
       {
         key: 'link',
         at: LINEAGE.d,

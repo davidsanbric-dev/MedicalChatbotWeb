@@ -65,7 +65,7 @@ export function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    document.title = 'Chatbot · Medical RAG pipeline';
+    document.title = 'Chat · Medical RAG Agent';
   }, []);
 
   // Follow the stream only while the reader is already at the bottom.
@@ -97,7 +97,7 @@ export function ChatPage() {
             <h1 className="text-sm font-semibold text-ink">Medical conditions assistant</h1>
             <p className="truncate text-xs text-muted">
               Answers grounded in {snapshot.conditions.length} condition pages ·{' '}
-              {mode === 'agent' ? 'an AI agent that picks its own tools' : 'retrieval + re-ranking + LLM'}
+              {mode === 'agent' ? 'an AI agent that picks its own tools' : 'classic RAG: retrieval + re-ranking + LLM'}
             </p>
           </div>
           <ModeSwitch mode={mode} onChange={setMode} disabled={isStreaming} />
@@ -191,11 +191,11 @@ export function ChatPage() {
   );
 }
 
-/** Classic RAG or the tool-calling agent; both share the conversation's memory. */
+/** The tool-calling agent (default) or the classic RAG pipeline; both share the conversation's memory. */
 function ModeSwitch({ mode, onChange, disabled }: { mode: ChatMode; onChange: (m: ChatMode) => void; disabled: boolean }) {
   const options: { value: ChatMode; label: string; hint: string }[] = [
-    { value: 'rag', label: 'Classic', hint: 'Always the same four steps: rephrase, search, re-rank, answer' },
     { value: 'agent', label: 'Agent', hint: 'The AI decides: search, list topics or hand you to a person' },
+    { value: 'rag', label: 'Classic', hint: 'Always the same four steps: rephrase, search, re-rank, answer' },
   ];
   return (
     <div role="radiogroup" aria-label="Answer mode" className="ml-auto inline-flex shrink-0 rounded-lg border border-line bg-surface-2 p-0.5">

@@ -3,7 +3,6 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { LAYERS } from '@/data/layers';
-import { snapshot } from '@/data/snapshot';
 import { useReducedMotion } from '@/hooks/use-media';
 import { C, bump, ease, win, aroundX, type SceneLabel, type Vec3 } from '../constants';
 import { Laptop, NeighborStation, PLATFORM_H, Platform, RBox } from '../parts';
@@ -18,20 +17,19 @@ const LAPTOP_X = -0.55;
 const LAPTOP_SCALE = 2.05;
 const TOUR_X = 4.35;
 const CABLE: [number, number] = [-4.85, -2.3];
-const s = snapshot;
 
 /** Interface page: you ask, you watch it work, the answer streams in, and the tour explains it all. */
 export default function InterfaceScene({ step }: { step: number }) {
   const labels = useMemo<SceneLabel[]>(
     () => [
-      { key: 'from', minor: true, at: [-6.1, 1.75, -0.2], content: <NeighborTag>4 · RAG API</NeighborTag> },
+      { key: 'from', minor: true, at: [-6.1, 1.75, -0.2], content: <NeighborTag>4 · {LAYERS[3].name}</NeighborTag> },
       { key: 'z1', minor: step !== 0, at: [LAPTOP_X + 1.35, BASE + 2.55, -0.6], content: <ZoneTag n={1} active={step === 0} color={PINK}>Ask anything</ZoneTag> },
       { key: 'z2', minor: step !== 1, at: [LAPTOP_X - 1.55, BASE + 2.2, -0.6], content: <ZoneTag n={2} active={step === 1} color={PINK}>Watch it work</ZoneTag> },
-      { key: 'z3', minor: step !== 2, at: [LAPTOP_X - 0.4, BASE + 0.1, 1.45], place: 'below', content: <ZoneTag n={3} active={step === 2} color={PINK}>Read it as it’s written</ZoneTag> },
+      { key: 'z3', minor: step !== 2, at: [LAPTOP_X - 0.4, BASE + 0.1, 1.45], place: 'below', content: <ZoneTag n={3} active={step === 2} color={PINK}>See where it came from</ZoneTag> },
       { key: 'z4', minor: step !== 3, at: [TOUR_X, BASE + 1.75, -0.2], content: <ZoneTag n={4} active={step === 3} color={PINK}>Take the tour</ZoneTag> },
       note(0, step, [LAPTOP_X + 2.2, BASE + 1.7, 0.6], 'right', <>Type a question in plain words, like “How is acne treated?”</>),
-      note(1, step, [LAPTOP_X - 2.4, BASE + 1.6, 0.4], 'left', <>Live status: understanding → searching → found {s.meta.topN} passages.</>),
-      note(2, step, [LAPTOP_X + 2.2, BASE + 1.2, 0.6], 'right', <>Words appear as soon as the AI writes them, no waiting for the whole answer.</>),
+      note(1, step, [LAPTOP_X - 2.4, BASE + 1.6, 0.4], 'left', <>Live steps: each tool the agent uses, as it happens.</>),
+      note(2, step, [LAPTOP_X + 2.2, BASE + 1.2, 0.6], 'right', <>The answer names its sources. In Classic mode, words appear as the AI writes them.</>),
       note(3, step, [TOUR_X, BASE, 1.35], 'below', <>Every number on these pages comes from the real pipeline database.</>),
     ],
     [step],
@@ -50,7 +48,7 @@ export default function InterfaceScene({ step }: { step: number }) {
       bounds={{ min: [-7.2, 0, -1.5], max: [5.95, 3.15, 1.6] }}
       core={aroundX(focus[step].target[0], 3.0, 3.15)}
       labels={labels}
-      description="This website as a big laptop: a question is asked, live status lights come on, and the answer appears line by line while signals travel to and from the RAG API. Next to it, five tour pages fan out of a box of real pipeline data."
+      description={`This website as a big laptop: a question is asked, a status light comes on for each step the agent takes, and the answer appears while signals travel to and from the ${LAYERS[3].name}. Next to it, five tour pages fan out of a box of real pipeline data.`}
     >
       <FocusRing target={focus[step].target} radius={focus[step].r} color={PINK} />
       <NeighborStation kind="api" position={[-6.1, 0, 0]} />

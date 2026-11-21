@@ -1,8 +1,8 @@
-# Medical Conditions RAG · React Frontend
+# Medical RAG Agent · React Frontend
 
-The user-facing layer of the medical-conditions RAG pipeline. It does two jobs:
+The user-facing layer of the medical-conditions agent pipeline. It does two jobs:
 
-1. **Chatbot.** A streaming chat client for the FastAPI RAG service. It reads Server-Sent Events over `fetch`, validates every event with zod, shows progress stages, and supports stop and new-chat.
+1. **Chat.** A streaming client for the FastAPI service's AI agent. It shows each tool the agent calls, any request it opens for the care team, and the conditions behind the answer. A Classic mode runs the fixed RAG pipeline instead, with progress stages and a word-by-word answer. Both read Server-Sent Events over `fetch`, validate every event with zod, and support stop and new-chat.
 2. **A visual tour of the pipeline, written for non-technical readers.** The home page shows the whole pipeline as one horizontal line of 3D stations, with data changing shape as it moves from station to station. Each station page then follows the same order:
    - its place in the pipeline;
    - an animated 3D scene told in three or four short steps, each with a plain-language caption and the technical term next to it;
@@ -20,7 +20,7 @@ The pipeline has four repositories:
 | --- | --- |
 | Scraper | [MedicalChatbotScraper](https://github.com/davidsanbric-dev/MedicalChatbotScraper) |
 | Worker | [MedicalChatbotWorker](https://github.com/davidsanbric-dev/MedicalChatbotWorker) |
-| Database + RAG API | [MedicalChatbotAPI](https://github.com/davidsanbric-dev/MedicalChatbotAPI) |
+| Database + Agent API | [MedicalChatbotAPI](https://github.com/davidsanbric-dev/MedicalChatbotAPI) |
 | Interface | **MedicalChatbotWeb** (this one) |
 
 ## Linking into a page
@@ -32,7 +32,7 @@ Every **Under the hood** tab has its own address. `/scraper#mapping`, for exampl
 | `/scraper` | `#mapping` · `#record` · `#dataset` · `#quality` · `#run` |
 | `/worker` | `#stages` · `#chunks` · `#fixes` · `#run` |
 | `/database` | `#schema` · `#explorer` · `#sql` · `#notes` |
-| `/api` | `#rerank` · `#endpoints` · `#agent` · `#evaluation` · `#notes` · `#run` |
+| `/api` | `#agent` · `#classic` · `#rerank` · `#endpoints` · `#evaluation` · `#notes` · `#run` |
 | `/interface` | `#tools` · `#snapshot` · `#streaming` · `#deploy` · `#run` |
 
 ## Stack
@@ -112,13 +112,15 @@ Both scripts declare their dependencies inline (PEP 723), so `uv run` needs no s
 
 ## The evaluation results
 
-The API page's "Tested with 92 questions" and "It can also act" sections, and its Evaluation tab, read `src/data/evaluation/retrieval.json` and `agent.json`. These are the API's own evaluation results, also generated and never hand-edited. After `make eval-retrieval` and `make eval-agent` in `medical_conditions_api`, copy them with:
+The API page's "Tested with 16 messages" and "Its search, tested with 92 questions" sections, and its Evaluation tab, read `src/data/evaluation/retrieval.json` and `agent.json`. These are the API's own evaluation results, also generated and never hand-edited. After `make eval-retrieval` and `make eval-agent` in `medical_conditions_api`, copy them with:
 
 ```bash
 bun run sync:evals
 ```
 
 `src/data/evaluation.ts` validates both files against zod schemas at startup, like the snapshot.
+
+The API page's 3D scene plays the agent loop for a few messages, listed in `src/data/agent-scenarios.ts`. None of them is written by hand: health questions replay the snapshot's retrieval traces, and the other messages are the agent evaluation's own test cases.
 
 ## Project layout
 
@@ -127,6 +129,7 @@ src/
   data/layers.ts            the stations: names, plain-language copy, colors, repos
   data/snapshot.ts          zod schema + typed snapshot access
   data/evaluation.ts        the API's evaluation results (retrieval + agent), validated
+  data/agent-scenarios.ts   the messages the API page's agent scene plays
   lib/api.ts                REST calls and the SSE stream reader (chat and agent)
   stores/                   zustand stores (chat, home hover link)
   components/layout/        app shell, pipeline map, the LayerPage template
@@ -135,8 +138,8 @@ src/
     stage.tsx               shared camera, lights, floor, labels, fit-to-view
     parts.tsx               platforms, belts, station models, travelling items
     point-cloud.tsx         instanced 3-D meaning map (565 passages)
-    scenes/                 home line + one scene per station
-  components/viz/           page anatomy, lineage trace, bar list, re-rank chart
+    scenes/                 home line + one scene per station (the API's is the agent loop)
+  components/viz/           page anatomy, lineage trace, bar list, re-rank chart, agent tests, answer modes
   components/ui/            primitives, JSON tree, data table
   pages/                    home, five station pages, chat
 scripts/                    snapshot seeding and export

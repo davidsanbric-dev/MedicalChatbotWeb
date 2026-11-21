@@ -11,16 +11,20 @@ const InterfaceScene = lazy(() => import('@/components/three/scenes/interface-sc
 const PINK = LAYERS[4].color;
 
 const STEPS: StoryStep[] = [
-  { title: 'Ask anything', term: 'chat UI', caption: 'Type a question in plain words. Follow-up questions work too.' },
   {
-    title: 'Watch it work',
-    term: 'Server-Sent Events · stages',
-    caption: 'While you wait, live status shows each step: understanding, searching, passages found.',
+    title: 'Ask anything',
+    term: 'chat UI',
+    caption: 'Type a question in plain words, in English or Spanish. Follow-up questions work too.',
   },
   {
-    title: 'Read it as it’s written',
-    term: 'token streaming',
-    caption: 'The answer appears word by word as soon as the AI writes it, instead of all at once at the end.',
+    title: 'Watch it work',
+    term: 'Server-Sent Events · tool calls',
+    caption: 'While you wait, each step the agent takes appears live: the tool it picked, what it searched for, a call to the care team.',
+  },
+  {
+    title: 'See where it came from',
+    term: 'answer + sources · token streaming',
+    caption: 'The answer names the conditions it came from. In Classic mode it is written out word by word as the AI produces it.',
   },
   {
     title: 'Take the tour',
@@ -29,7 +33,7 @@ const STEPS: StoryStep[] = [
   },
 ];
 
-const QUESTIONS = ['What are the symptoms of asthma?', 'How is acne treated?', 'What helps with insomnia?'];
+const QUESTIONS = ['What are the symptoms of asthma?', 'What conditions can you help me with?', 'I want to talk to a real doctor, please.'];
 
 const RESPONSIBILITIES = [
   { concern: 'Routing & code splitting', tool: 'TanStack Router', where: 'one lazy chunk per page' },
@@ -50,7 +54,7 @@ export function InterfacePage() {
       scene={(step) => <InterfaceScene step={step} />}
       numbers={[
         { value: '7', label: 'pages: the map, five stations and the chat' },
-        { value: 'Live', label: 'answers stream in word by word' },
+        { value: 'Live', label: 'each step the agent takes, as it happens' },
         { value: '100%', label: 'of the figures come from real pipeline data' },
       ]}
       details={[
@@ -132,9 +136,9 @@ if (parsed.success) yield parsed.data;`}
                   An <Code>AbortController</Code> backs Stop and New chat.
                 </Finding>
                 <Finding tone="info" title="Two answer modes, one reader">
-                  Classic mode reads <Code>/chat/stream</Code> (stages, then tokens); Agent mode reads{' '}
-                  <Code>/agent/stream</Code> (tool calls, a handoff, then the answer with its sources). Both share the
-                  session, so switching keeps the conversation.
+                  Agent mode, the default, reads <Code>/agent/stream</Code> (tool calls, a handoff, then the answer with its
+                  sources); Classic mode reads <Code>/chat/stream</Code> (stages, then tokens). Both share the session, so
+                  switching keeps the conversation.
                 </Finding>
               </div>
             </div>

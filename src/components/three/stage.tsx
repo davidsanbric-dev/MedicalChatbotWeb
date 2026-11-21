@@ -98,6 +98,9 @@ const EDGE = 6;
 function LabelProjector({ labels, els }: { labels: SceneLabel[]; els: RefObject<Map<string, HTMLDivElement>> }) {
   const v = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera, size }) => {
+    // Frame callbacks run before the render updates the camera's matrices: with
+    // reduced motion no later frame would fix labels projected from stale ones.
+    camera.updateMatrixWorld();
     const narrow = size.width < 640;
     for (const l of labels) {
       const el = els.current.get(l.key);
@@ -107,8 +110,12 @@ function LabelProjector({ labels, els }: { labels: SceneLabel[]; els: RefObject<
         continue;
       }
       if (Array.isArray(l.at)) v.set(l.at[0], l.at[1], l.at[2]);
-      else if (l.at.current) l.at.current.getWorldPosition(v);
-      else continue;
+      else if (l.at.current?.visible) l.at.current.getWorldPosition(v);
+      else {
+        // A label that follows an object hides while the object does.
+        el.style.opacity = '0';
+        continue;
+      }
       v.project(camera);
       let x = ((v.x + 1) / 2) * size.width;
       let y = ((1 - v.y) / 2) * size.height;

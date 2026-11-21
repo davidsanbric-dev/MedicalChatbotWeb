@@ -1,335 +1,245 @@
-import { QuadraticBezierLine } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { clsx } from 'clsx';
 import { useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
+import { MAX_ROUNDS, sourcesOf, type Scenario, type ToolName } from '@/data/agent-scenarios';
 import { LAYERS } from '@/data/layers';
-import { snapshot, type Candidate } from '@/data/snapshot';
-import { useReducedMotion } from '@/hooks/use-media';
-import { C, bump, ease, win, aroundX, type SceneLabel, type Vec3 } from '../constants';
-import { Bubble, Ghost, Laptop, PLATFORM_H, Platform } from '../parts';
-import { cloudLocal, pointById } from '../cloud-data';
-import { PointCloud } from '../point-cloud';
+import { snapshot } from '@/data/snapshot';
+import { aroundX, type Bounds, type SceneLabel, type Vec3 } from '../constants';
+import { Ghost, Laptop, Platform } from '../parts';
 import { FocusRing, NeighborTag, SceneNote, ZoneTag } from '../scene-kit';
 import { Stage } from '../stage';
-import { useStepStart } from '../use-step';
+import { Core } from './agent/core';
+import {
+  ALERT,
+  AMBER,
+  API_X,
+  BASE,
+  BOUNDS,
+  CLOUD,
+  CORE,
+  DESK_X,
+  GATE_X,
+  LAPTOP_X,
+  LIST_X,
+  PINK,
+  SURFACE,
+  TOOLS,
+  toolOf,
+  type SceneProps,
+} from './agent/layout';
+import { Packets } from './agent/packets';
+import { SafetyCheck } from './agent/safety-check';
+import { Search } from './agent/search';
+import { Tools } from './agent/tools';
 
 const s = snapshot;
-const AMBER = LAYERS[3].color;
-const PINK = LAYERS[4].color;
-const GOOD = '#0ca30c';
-const BASE = PLATFORM_H;
 
-const CLOUD: Vec3 = [-5.45, 1.95, -0.1];
-const CLOUD_R = 1.3;
-const JUDGE_X = -1.35;
-const CORE: Vec3 = [2.15, BASE + 1.05, 0];
-const LAPTOP_X = 5.55;
-const BAR_W = 0.13;
-const BAR_GAP = 0.045;
-const MIN_SCORE = -12;
-const BAR_SCALE = 0.085;
-const barHeight = (score: number) => Math.max(0.04, (score - MIN_SCORE) * BAR_SCALE);
-const THRESHOLD_Y = barHeight(s.meta.relevanceThreshold);
+/**
+ * API page: the agent loop. A message passes a fixed safety check, the AI picks
+ * one of three tools, the tool's result comes back, and the AI answers. Four
+ * lamps on the AI's base count its rounds (model calls); it never takes more.
+ */
+export default function ApiScene({ step, scenario }: SceneProps) {
+  const callAnchor = useRef<THREE.Object3D | null>(null);
+  const answerAnchor = useRef<THREE.Object3D | null>(null);
 
-type Trace = (typeof s.retrievalTraces)[number];
-
-/** API page: question → closest passages in the meaning map → re-check → answer. */
-export default function ApiScene({ step, trace }: { step: number; trace: Trace }) {
-  const used = trace.candidates.filter((c) => c.selected);
-  const labels = useMemo<SceneLabel[]>(
-    () => [
-      { key: 'z1', minor: step !== 0, at: [CORE[0] - 0.15, CORE[1] + 1.0, CORE[2]], content: <ZoneTag n={1} active={step === 0} color={AMBER}>Understand the question</ZoneTag> },
-      { key: 'z2', minor: step !== 1, at: [CLOUD[0], CLOUD[1] + CLOUD_R * 0.8, CLOUD[2]], content: <ZoneTag n={2} active={step === 1} color={AMBER}>Find similar passages</ZoneTag> },
-      { key: 'z3', minor: step !== 2, at: [JUDGE_X, BASE + 2.0, 0], content: <ZoneTag n={3} active={step === 2} color={AMBER}>Double-check each one</ZoneTag> },
-      { key: 'z4', minor: step !== 3, at: [(CORE[0] + LAPTOP_X) / 2 + 0.25, BASE + 0.35, 1.05], content: <ZoneTag n={4} active={step === 3} color={AMBER}>Write the answer</ZoneTag> },
-      { key: 'db', minor: true, at: [CLOUD[0], BASE, 1.35], place: 'below', content: <NeighborTag>3 · Database: {s.stages.documents.rows} passages</NeighborTag> },
+  const labels = useMemo<SceneLabel[]>(() => {
+    const tool = toolOf(scenario);
+    const emergency = scenario.action === 'guardrail';
+    const busy = emergency ? 'request_human_handoff' : tool;
+    const sources = scenario.trace ? sourcesOf(scenario.trace) : [];
+    // The round counter rides on the AI's tag: "round 2 of 4".
+    const round = step === 0 ? null : emergency ? 'not asked' : `round ${step === 3 && tool ? 2 : 1} of ${MAX_ROUNDS}`;
+    return [
+      zone(1, step, [GATE_X, BASE + 2.45, -0.35], 'Safety check'),
+      zone(
+        2,
+        step,
+        [CORE[0], BASE + 2.2, 0],
+        <>
+          The AI decides
+          {round && <span className="font-mono text-[10px] text-muted">· {round}</span>}
+        </>,
+      ),
+      zone(3, step, [-1.05, BASE + 2.05, -0.5], 'Its tools'),
+      zone(4, step, [(CORE[0] + LAPTOP_X) / 2 + 0.3, BASE + 0.35, 1.05], 'Answer + sources'),
+      ...TOOLS.map(
+        (t): SceneLabel => ({
+          key: `tool-${t.name}`,
+          minor: true,
+          at: [t.x, SURFACE, 0.5],
+          place: 'below',
+          content: <ToolTag active={step >= 1 && busy === t.name}>{t.label}</ToolTag>,
+        }),
+      ),
       {
-        key: 'q',
-        at: [LAPTOP_X + 0.2, BASE + 1.75, -0.2],
+        key: 'db',
+        minor: true,
+        at: [CLOUD[0], BASE, 1.3],
+        place: 'below',
+        content: <NeighborTag>3 · Database: {s.stages.documents.rows} passages</NeighborTag>,
+      },
+      {
+        // Pinned to the top-right corner, above the website it comes from (labels are clamped inside the canvas).
+        key: 'ask',
+        at: [BOUNDS.max[0] + 2, BOUNDS.max[1] + 2, BOUNDS.min[2]],
         content: (
-          <SceneNote color={PINK} className="max-w-[12rem]">
-            <span className="text-muted">5 · Interface asks:</span> “{trace.question}”
+          <SceneNote color={PINK} className="max-w-[13rem]">
+            <span className="text-muted">5 · Interface asks:</span> “{scenario.message}”
           </SceneNote>
         ),
       },
-      note(0, step, CORE[0], <>The question is rewritten as a clear, complete search, so follow-ups like “and how is it treated?” work.</>),
-      note(1, step, CLOUD[0] + 0.6, <>It lands in the meaning map. The {s.meta.topK} closest passages light up.</>),
-      note(
-        2,
-        step,
-        JUDGE_X,
-        trace.relevantCount ? (
-          <>A second model scores each one against the question. {trace.relevantCount} of {s.meta.topK} clear the bar.</>
-        ) : (
-          <>A second model scores each one against the question. None clears the bar: they only looked similar.</>
-        ),
+      {
+        key: 'call',
+        minor: true,
+        hidden: step !== 1 || !tool,
+        at: callAnchor,
+        content: <span className="rounded bg-surface-3/95 px-1.5 py-0.5 font-mono text-[10px] text-ink shadow-lg">{tool}()</span>,
+      },
+      {
+        key: 'sources',
+        minor: true,
+        hidden: step !== 3 || sources.length === 0,
+        at: answerAnchor,
+        place: 'below',
+        content: <SceneNote color={AMBER}>From: {sources.join(', ')}</SceneNote>,
+      },
+      ...[0, 1, 2, 3].map(
+        (n): SceneLabel => ({
+          key: `note-${n}`,
+          at: [noteX(n, scenario), BASE, 1.55],
+          place: 'below',
+          hidden: step !== n,
+          content: <SceneNote color={emergency ? ALERT : AMBER}>{noteText(n, scenario)}</SceneNote>,
+        }),
       ),
-      note(
-        3,
-        step,
-        (CORE[0] + LAPTOP_X) / 2,
-        used.length ? (
-          <>The AI writes the answer from these {used.length} passages only ({[...new Set(used.map((c) => c.condition))].join(', ')}).</>
-        ) : (
-          <>Nothing passed, so the bot says it doesn’t know instead of guessing.</>
-        ),
-      ),
-    ],
-    [step, trace, used],
-  );
+    ];
+  }, [step, scenario]);
 
-  const focus: { target: Vec3; r: number }[] = [
-    { target: [CORE[0], BASE, 0], r: 1.0 },
-    { target: [CLOUD[0], 0, CLOUD[2]], r: 1.65 },
-    { target: [JUDGE_X, BASE, 0], r: 1.75 },
-    { target: [(CORE[0] + LAPTOP_X) / 2 + 0.4, 0, 0.2], r: 2.0 },
-  ];
+  const focus = focusOf(step, scenario);
 
   return (
     <Stage
       className="h-full w-full"
-      bounds={{ min: [-7.05, 0, -1.4], max: [6.95, 3.1, 1.45] }}
-      core={aroundX(focus[step].target[0], 2.9, 3.1)}
+      bounds={BOUNDS}
+      core={focus.frame}
       labels={labels}
-      description={`A question arrives from the website and lands in the 3D meaning map. Its ${s.meta.topK} closest passages light up, are re-scored as a row of bars against a pass line, and the best ones feed the answer that goes back to the website.`}
+      description="The agent at work. A message leaves the website on the right and passes under a safety lamp. Unless it sounds like an emergency, it reaches the AI in the middle, which sends a call to one of three tools on its left: a search through the knowledge base's meaning map with a row of score bars, a list of topics, or a person with a headset who prints a request ticket. The result flows back to the AI, four lamps count its rounds, and the answer returns to the website."
     >
-      <FocusRing target={focus[step].target} radius={focus[step].r} color={AMBER} />
+      <FocusRing target={focus.target} radius={focus.r} color={AMBER} />
       <Ghost>
-        <Platform color={LAYERS[2].color} position={[CLOUD[0], 0, 0]} size={[2.6, 2.5]} />
-        <Platform color={PINK} position={[LAPTOP_X, 0, 0]} size={[2.3, 2.3]}>
+        <Platform color={LAYERS[2].color} position={[CLOUD[0], 0, 0]} size={[2.3, 2.4]} />
+        <Platform color={PINK} position={[LAPTOP_X, 0, 0]} size={[2.0, 2.2]}>
           <group position={[0, 0, -0.15]} rotation-y={-0.35}>
-            <Laptop color={PINK} scale={0.85} />
+            <Laptop color={PINK} scale={0.8} />
           </group>
         </Platform>
       </Ghost>
-      <Platform color={AMBER} position={[0.4, 0, 0]} size={[6.2, 2.6]} />
-      <Engine step={step} />
-      <Retrieval step={step} trace={trace} />
+      <Platform color={AMBER} position={[(API_X[0] + API_X[1]) / 2, 0, 0]} size={[API_X[1] - API_X[0], 2.6]} />
+      <Search step={step} scenario={scenario} />
+      <Tools step={step} scenario={scenario} />
+      <Core step={step} scenario={scenario} />
+      <SafetyCheck step={step} scenario={scenario} />
+      <Packets
+        step={step}
+        scenario={scenario}
+        onCall={(o) => void (callAnchor.current = o)}
+        onAnswer={(o) => void (answerAnchor.current = o)}
+      />
     </Stage>
   );
 }
 
-function note(forStep: number, step: number, x: number, children: ReactNode): SceneLabel {
+function zone(n: number, step: number, at: Vec3, text: ReactNode): SceneLabel {
   return {
-    key: `note-${forStep}`,
-    at: [x, BASE, 1.4],
-    place: 'below',
-    hidden: step !== forStep,
-    content: <SceneNote color={AMBER}>{children}</SceneNote>,
+    key: `z${n}`,
+    minor: step !== n - 1,
+    at,
+    content: (
+      <ZoneTag n={n} active={step === n - 1} color={AMBER}>
+        {text}
+      </ZoneTag>
+    ),
   };
 }
 
-/** The answering engine: a faceted core inside a ring; it spins up while working. */
-function Engine({ step }: { step: number }) {
-  const core = useRef<THREE.Mesh>(null);
-  const ring = useRef<THREE.Mesh>(null);
-  const speed = useRef(0.5);
-  useFrame((_, dt) => {
-    speed.current = THREE.MathUtils.damp(speed.current, step === 0 || step === 3 ? 2.6 : 0.5, 3, dt);
-    if (core.current) core.current.rotation.y += dt * speed.current;
-    if (ring.current) ring.current.rotation.z += dt * speed.current * 1.4;
-  });
+function ToolTag({ active, children }: { active: boolean; children: ReactNode }) {
   return (
-    <group>
-      <mesh position={[CORE[0], BASE + 0.14, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.45, 0.6, 0.28, 32]} />
-        <meshStandardMaterial color="#3a3322" />
-      </mesh>
-      <group position={CORE}>
-        <mesh ref={core} castShadow>
-          <icosahedronGeometry args={[0.46, 0]} />
-          <meshStandardMaterial color={AMBER} emissive={AMBER} emissiveIntensity={0.45} flatShading roughness={0.4} />
-        </mesh>
-        <mesh ref={ring} rotation-x={1.2}>
-          <torusGeometry args={[0.78, 0.035, 12, 72]} />
-          <meshStandardMaterial color="#ffd27a" emissive="#ffd27a" emissiveIntensity={0.9} />
-        </mesh>
-      </group>
-    </group>
+    <div
+      className={clsx(
+        'text-center text-[10px] font-medium whitespace-nowrap transition-colors duration-300 sm:text-[11px]',
+        active ? 'text-ink' : 'text-muted',
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
-function Retrieval({ step, trace }: { step: number; trace: Trace }) {
-  const reduced = useReducedMotion();
-  const stepStart = useStepStart(`${step}-${trace.question}`);
-  const cloud = useRef<THREE.Group>(null);
-  const question = useRef<THREE.Group>(null);
-  const beam = useRef<{ setPoints: (a: THREE.Vector3, b: THREE.Vector3, m: THREE.Vector3) => void; visible: boolean } | null>(null);
-  const links = useRef<THREE.LineSegments>(null);
-  const bars = useRef<(THREE.Mesh | null)[]>([]);
-  const feeds = useRef<(THREE.Mesh | null)[]>([]);
-  const answer = useRef<THREE.Group>(null);
-  const v = useMemo(() => ({ a: new THREE.Vector3(), b: new THREE.Vector3(), m: new THREE.Vector3() }), []);
+const andList = (items: string[]) =>
+  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
-  const candidateIds = useMemo(() => new Set(trace.candidates.map((c) => c.id)), [trace]);
-  const queryLocal = useMemo(() => cloudLocal(trace.query, CLOUD_R), [trace]);
-  // Bars sorted so the best candidates stand closest to the engine.
-  const ranked = useMemo(() => [...trace.candidates].sort((x, y) => x.rerankScore - y.rerankScore), [trace]);
-  const barX = (i: number) => JUDGE_X - ((ranked.length - 1) / 2) * (BAR_W + BAR_GAP) + i * (BAR_W + BAR_GAP);
-  const used = useMemo(() => ranked.map((c, i) => ({ c, i })).filter(({ c }) => c.selected), [ranked]);
+const DECISION: Record<ToolName, string> = {
+  search_knowledge_base: 'calls the search',
+  list_conditions: 'asks for the list of topics',
+  request_human_handoff: 'calls a person',
+};
 
-  const linkGeometry = useMemo(() => {
-    const pts: number[] = [];
-    for (const c of trace.candidates) {
-      const p = cloudLocal(pointById(c.id), CLOUD_R);
-      pts.push(queryLocal.x, queryLocal.y, queryLocal.z, p.x, p.y, p.z);
+/** What the current step shows for this message, in plain words. */
+function noteText(step: number, sc: Scenario): ReactNode {
+  const tool = toolOf(sc);
+  const emergency = sc.action === 'guardrail';
+  if (step === 0)
+    return emergency
+      ? 'Emergency words trip the fixed rules, so the care team is alerted at once.'
+      : 'No emergency words, so the message goes on to the AI.';
+  if (step === 1) {
+    if (emergency) return 'The AI is never asked, so a model mistake can’t miss an emergency.';
+    if (!tool) return 'A greeting needs no tool, so the AI decides to simply reply.';
+    return `The AI reads the message and its three tool descriptions, and ${DECISION[tool]}.`;
+  }
+  if (step === 2) {
+    if (emergency) return 'The request is saved as an emergency. In this demo, nobody is notified.';
+    if (tool === 'search_knowledge_base' && sc.trace) {
+      const { relevantCount: passed, selectedCount: kept } = sc.trace;
+      return passed > kept
+        ? `The ${s.meta.topK} closest passages are double-checked: ${passed} clear the bar, and the best ${kept} go back to the AI.`
+        : `The ${s.meta.topK} closest passages are double-checked: ${passed} clear the bar and go back to the AI.`;
     }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    return g;
-  }, [trace, queryLocal]);
-
-  useFrame(({ clock }) => {
-    const ts = reduced ? 2.5 : clock.elapsedTime - stepStart.current;
-
-    // 1 · question bubble flies from the website into the engine
-    const q = question.current;
-    if (q) {
-      const p = step === 0 ? ease(win(ts % 3.2, 0.2, 1.4)) : 1;
-      q.position.set(
-        THREE.MathUtils.lerp(LAPTOP_X - 0.1, CORE[0] + 0.15, p),
-        THREE.MathUtils.lerp(BASE + 1.35, CORE[1] + 0.1, p) + Math.sin(Math.PI * p) * 0.5,
-        THREE.MathUtils.lerp(0.1, 0.1, p),
-      );
-      q.scale.setScalar(step === 0 ? Math.max(0.001, 1 - win(ts % 3.2, 1.3, 1.5)) : 0.001);
-    }
-
-    // 2 · beam from the engine to where the question lands, and links to its neighbours
-    const cl = cloud.current;
-    if (beam.current && cl) {
-      v.b.copy(queryLocal);
-      cl.localToWorld(v.b);
-      v.a.set(...CORE);
-      v.m.set((v.a.x + v.b.x) / 2, Math.max(v.a.y, v.b.y) + 1.1, (v.a.z + v.b.z) / 2);
-      const grow = step === 1 ? ease(win(ts, 0, 0.8)) : step > 1 ? 1 : 0;
-      v.b.lerpVectors(v.a, v.b, Math.max(grow, 0.001));
-      beam.current.setPoints(v.a, v.b, v.m);
-      beam.current.visible = step === 1;
-    }
-    if (links.current) {
-      const mat = links.current.material as THREE.LineBasicMaterial;
-      mat.opacity = step === 1 ? 0.55 * ease(win(ts, 0.6, 1.3)) : step === 2 ? 0.25 : 0;
-      links.current.visible = mat.opacity > 0.01;
-    }
-
-    // 3 · bars rise to their re-rank score
-    bars.current.forEach((m, i) => {
-      if (!m) return;
-      const h = barHeight(ranked[i].rerankScore);
-      const grow = step < 2 ? 0 : step === 2 ? ease(win(ts, 0.2 + i * 0.05, 0.9 + i * 0.05)) : 1;
-      m.scale.y = Math.max(0.001, grow);
-      m.position.y = BASE + (h * m.scale.y) / 2;
-    });
-
-    // 4 · the passages that passed feed the engine; the answer goes back to the website
-    feeds.current.forEach((m, k) => {
-      if (!m) return;
-      const { i, c } = used[k] ?? {};
-      if (c === undefined || step !== 3) {
-        m.scale.setScalar(0.001);
-        return;
-      }
-      const p = ease(win(ts % 3.6, 0.1 + k * 0.12, 0.9 + k * 0.12));
-      const fromY = BASE + barHeight(c.rerankScore) + 0.08;
-      m.position.set(
-        THREE.MathUtils.lerp(barX(i), CORE[0], p),
-        THREE.MathUtils.lerp(fromY, CORE[1], p) + Math.sin(Math.PI * p) * 0.5,
-        THREE.MathUtils.lerp(0, 0, p),
-      );
-      m.scale.setScalar(p >= 1 ? 0.001 : 1);
-    });
-    const a = answer.current;
-    if (a) {
-      const p = ease(win(ts % 3.6, 1.6, 2.9));
-      a.position.set(
-        THREE.MathUtils.lerp(CORE[0] + 0.4, LAPTOP_X - 0.2, p),
-        THREE.MathUtils.lerp(CORE[1], BASE + 1.3, p) + Math.sin(Math.PI * p) * 0.45,
-        0.35,
-      );
-      a.scale.setScalar(step === 3 ? Math.max(0.001, bump(ts % 3.6, 1.55, 3.05, 0.15)) : 0.001);
-    }
-  });
-
-  return (
-    <>
-      <group position={CLOUD}>
-        <PointCloud
-          radius={CLOUD_R}
-          size={0.036}
-          groupRef={cloud}
-          spin={reduced ? 0 : 0.1}
-          highlight={step >= 1 ? candidateIds : null}
-          dim={0.72}
-        >
-          {step >= 1 && (
-            <group position={queryLocal}>
-              <mesh>
-                <octahedronGeometry args={[0.1, 0]} />
-                <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1.5} />
-              </mesh>
-              <mesh>
-                <sphereGeometry args={[0.2, 20, 20]} />
-                <meshBasicMaterial color={PINK} transparent opacity={0.22} depthWrite={false} />
-              </mesh>
-            </group>
-          )}
-          <lineSegments ref={links} geometry={linkGeometry}>
-            <lineBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
-          </lineSegments>
-        </PointCloud>
-      </group>
-
-      <QuadraticBezierLine
-        ref={(l) => void (beam.current = l as unknown as typeof beam.current)}
-        start={CORE}
-        end={CORE}
-        color="#ffffff"
-        lineWidth={2}
-        transparent
-        opacity={0.8}
-      />
-
-      <group ref={question}>
-        <Bubble color={PINK} w={0.5} h={0.27} tail="right" />
-      </group>
-
-      {/* The judge: one bar per candidate, and the pass line */}
-      {ranked.map((c, i) => (
-        <mesh key={`${trace.question}-${c.id}`} ref={(m) => void (bars.current[i] = m)} position={[barX(i), BASE, 0]} castShadow>
-          <boxGeometry args={[BAR_W, barHeight(c.rerankScore), 0.34]} />
-          <meshStandardMaterial {...barLook(c)} />
-        </mesh>
-      ))}
-      {/* The pass line: two bright rails and a faint glass sheet between them */}
-      <group position={[JUDGE_X, BASE + THRESHOLD_Y, 0]} visible={step >= 2}>
-        {[-0.3, 0.3].map((z) => (
-          <mesh key={z} position={[0, 0, z]}>
-            <boxGeometry args={[ranked.length * (BAR_W + BAR_GAP) + 0.35, 0.018, 0.018]} />
-            <meshBasicMaterial color="#ffd27a" />
-          </mesh>
-        ))}
-        <mesh rotation-x={-Math.PI / 2}>
-          <planeGeometry args={[ranked.length * (BAR_W + BAR_GAP) + 0.35, 0.6]} />
-          <meshBasicMaterial color="#ffd27a" transparent opacity={0.08} side={THREE.DoubleSide} depthWrite={false} />
-        </mesh>
-      </group>
-
-      {Array.from({ length: s.meta.topN }, (_, k) => (
-        <mesh key={k} ref={(m) => void (feeds.current[k] = m)} scale={0.001}>
-          <sphereGeometry args={[0.075, 16, 16]} />
-          <meshStandardMaterial color={GOOD} emissive={GOOD} emissiveIntensity={1.2} />
-        </mesh>
-      ))}
-
-      <group ref={answer} scale={0.001}>
-        <Bubble color={used.length ? AMBER : C.line} w={0.62} h={0.32} />
-      </group>
-    </>
-  );
+    if (tool === 'list_conditions') return `It returns the ${s.conditions.length} conditions the knowledge base covers.`;
+    if (tool === 'request_human_handoff') return 'It saves a request for the care team, with a reason and an urgency the AI chose.';
+    return 'No tool this time: there is nothing to look up.';
+  }
+  if (emergency) return 'Fixed safety advice comes straight back: call your local emergency number, plus the request number.';
+  if (tool === 'search_knowledge_base' && sc.trace)
+    return `The passages go back to the AI, which answers in round 2 of at most ${MAX_ROUNDS}, citing ${andList(sourcesOf(sc.trace))}.`;
+  if (tool === 'list_conditions') return `The list goes back to the AI, which answers in round 2 of at most ${MAX_ROUNDS} with the topics it covers.`;
+  if (tool === 'request_human_handoff')
+    return `The request number goes back to the AI, which says a person will follow up (round 2 of at most ${MAX_ROUNDS}).`;
+  return `It answers in round 1 of at most ${MAX_ROUNDS}, with one short sentence.`;
 }
 
-function barLook(c: Candidate) {
-  if (c.selected) return { color: GOOD, emissive: GOOD, emissiveIntensity: 0.55 };
-  if (c.rerankScore > s.meta.relevanceThreshold) return { color: '#c3ccd6', emissive: '#000000', emissiveIntensity: 0 };
-  return { color: '#3a4655', emissive: '#000000', emissiveIntensity: 0 };
+function noteX(step: number, sc: Scenario) {
+  const emergency = sc.action === 'guardrail';
+  const tool = toolOf(sc);
+  if (step === 0) return GATE_X;
+  if (step === 1) return CORE[0] + 0.5;
+  if (step === 2) return emergency ? DESK_X : (TOOLS.find((t) => t.name === tool)?.x ?? CORE[0]);
+  return emergency ? (GATE_X + LAPTOP_X) / 2 : (CORE[0] + LAPTOP_X) / 2;
+}
+
+/** The spotlight for each step, and what a narrow screen frames. */
+function focusOf(step: number, sc: Scenario): { target: Vec3; r: number; frame: Bounds } {
+  const tool = toolOf(sc);
+  const emergency = sc.action === 'guardrail';
+  if (step === 0) return { target: [GATE_X, BASE, 0], r: 0.9, frame: aroundX(GATE_X + 0.8, 2.5, 3.15) };
+  if (step === 1) return { target: [CORE[0], BASE, 0], r: 1.05, frame: aroundX(CORE[0] - 1.6, 3.4, 3.15) };
+  if (step === 2) {
+    if (tool === 'search_knowledge_base') return { target: [TOOLS[0].x, BASE, 0], r: 1.8, frame: aroundX(-4.15, 2.95, 3.2) };
+    if (tool === 'list_conditions') return { target: [LIST_X, BASE, 0], r: 0.75, frame: aroundX(LIST_X + 0.5, 2.3, 3.15) };
+    if (tool === 'request_human_handoff' || emergency) return { target: [DESK_X, BASE, 0], r: 0.85, frame: aroundX(DESK_X + 0.5, 2.3, 3.15) };
+    return { target: [CORE[0], BASE, 0], r: 1.05, frame: aroundX(CORE[0], 2.5, 3.15) };
+  }
+  const x = emergency ? (GATE_X + LAPTOP_X) / 2 : (CORE[0] + LAPTOP_X) / 2;
+  return { target: [x, BASE, 0.2], r: emergency ? 1.35 : 1.9, frame: aroundX(x + 0.1, emergency ? 2.2 : 2.7, 3.15) };
 }

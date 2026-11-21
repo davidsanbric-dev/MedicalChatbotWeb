@@ -18,7 +18,7 @@ export function AppShell() {
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
           <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight text-ink">
             <img src="/favicon.svg" alt="" className="size-6" />
-            <span className="hidden sm:inline">Medical RAG</span>
+            <span className="hidden sm:inline">Medical RAG Agent</span>
             <span className="hidden font-mono text-xs font-normal text-muted md:inline">/ data pipeline</span>
           </Link>
           <nav aria-label="Layers" className="-mx-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-1">

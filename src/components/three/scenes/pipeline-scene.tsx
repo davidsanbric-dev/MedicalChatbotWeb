@@ -111,7 +111,7 @@ export default function PipelineScene({ onSelect }: { onSelect: (id: LayerId) =>
       bounds={{ min: [X[0] - 1.3, 0, -1.3], max: [X[X.length - 1] + 1.3, 3.0, 1.6] }}
       labels={labels}
       padding={[12, 20]}
-      description="The pipeline as a line of six stations: the source website, then the scraper, worker, database, RAG API and interface. Pages travel along a belt and change shape at each station."
+      description={`The pipeline as a line of six stations: the source website, then the scraper, worker, database, ${LAYERS[3].name} and interface. Pages travel along a belt and change shape at each station; the agent's tools circle its core.`}
     >
       {STATIONS.map((st) => (
         <Station key={st.kind} station={st} active={Boolean(st.id && active === st.id)} onHover={setActive} onSelect={onSelect} />

@@ -45,7 +45,7 @@ export function LayerPage({
   const hash = useLocation({ select: (location) => location.hash });
 
   useEffect(() => {
-    document.title = `${layer.title} · Medical RAG pipeline`;
+    document.title = `${layer.title} · Medical RAG Agent`;
   }, [layer.title]);
 
   return (

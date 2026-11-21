@@ -4,7 +4,7 @@ import { ApiError, streamAgent, streamChat } from '@/lib/api';
 
 export type ChatStage = 'rephrasing' | 'retrieving' | 'found' | 'answering' | 'deciding';
 
-/** 'rag': the fixed four-step pipeline (/chat). 'agent': the model picks its own tools (/agent). */
+/** 'agent' (the default): the model picks its own tools (/agent). 'rag': the fixed four-step pipeline (/chat). */
 export type ChatMode = 'rag' | 'agent';
 
 export interface ToolCall {
@@ -55,7 +55,7 @@ export const useChatStore = create<ChatState>()(
       return {
         // The API keys conversational memory by session_id, so a new id = a new conversation.
         sessionId: newId(),
-        mode: 'rag',
+        mode: 'agent',
         messages: [],
         isStreaming: false,
 

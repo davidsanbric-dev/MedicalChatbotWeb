@@ -14,7 +14,7 @@ export function HomePage() {
   const setActive = useUiStore((st) => st.setActiveLayer);
 
   useEffect(() => {
-    document.title = 'Medical RAG · How the chatbot learns';
+    document.title = 'Medical RAG Agent · How it learns to answer';
     return () => setActive(null);
   }, [setActive]);
 
@@ -25,11 +25,11 @@ export function HomePage() {
         <div className="relative mx-auto max-w-3xl px-4 pt-12 text-center sm:pt-16">
           <p className="font-mono text-xs tracking-wider text-muted uppercase">A data pipeline, station by station</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-balance text-ink sm:text-5xl">
-            How a chatbot learns to answer health questions
+            How an AI agent learns to answer health questions
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-balance text-ink-2">
             Follow {snapshot.audit.records} public web pages as they travel through five stations and become the
-            knowledge behind every answer.
+            knowledge an AI agent searches, cites and acts on.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
@@ -42,7 +42,7 @@ export function HomePage() {
               to="/chat"
               className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-2"
             >
-              <MessageSquareText className="size-4" /> Ask the chatbot
+              <MessageSquareText className="size-4" /> Ask the agent
             </Link>
           </div>
         </div>
@@ -116,7 +116,8 @@ export function HomePage() {
             <span>
               <span className="block text-lg font-semibold text-ink">See all five stations work together</span>
               <span className="block text-sm text-ink-2">
-                Ask a question and watch it get understood, matched, double-checked and answered live.
+                Ask a question and watch the agent decide: search and double-check the passages, list its topics, or
+                call a person.
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink sm:ml-auto">
