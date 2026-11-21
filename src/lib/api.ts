@@ -41,7 +41,7 @@ export const fetchTopSymptoms = (topN: number, signal?: AbortSignal) =>
   getJson(`/insights/top-symptoms?top_n=${topN}`, TopSymptoms, signal);
 
 /**
- * Events emitted by POST /chat/stream (stream_reply in medical_conditions_api's
+ * Events emitted by POST /chat/stream (ChatService.stream in medical_conditions_api's
  * app/services/chat.py). Every `data:` line is validated against this union.
  */
 export const ChatEvent = z.union([
@@ -56,7 +56,7 @@ export type ChatEvent = z.infer<typeof ChatEvent>;
 export const AgentTool = z.enum(['search_knowledge_base', 'list_conditions', 'request_human_handoff']);
 export type AgentTool = z.infer<typeof AgentTool>;
 
-/** Events emitted by POST /agent/stream (stream_run in app/services/agent.py). */
+/** Events emitted by POST /agent/stream (AgentService.stream in app/services/agent.py). */
 export const AgentEvent = z.union([
   z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) }),
   z.object({ handoff: z.object({ id: z.string(), urgency: z.enum(['routine', 'urgent', 'emergency']) }) }),

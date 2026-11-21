@@ -168,9 +168,11 @@ export function DatabasePage() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <CodeBlock
                 label="Retrieval (what the API's ORM query compiles to)"
-                code={`SELECT d.id, d.content, d.metadata_,
-       d.embedding <=> :query_vec AS distance
+                code={`SELECT d.content,
+       1 - (d.embedding <=> :query_vec) AS similarity,
+       p.condition_name AS condition
 FROM documents d
+LEFT JOIN processed_data p ON p.id = d.processed_data_id
 ORDER BY d.embedding <=> :query_vec   -- cosine distance
 LIMIT ${s.meta.topK};`}
               />
