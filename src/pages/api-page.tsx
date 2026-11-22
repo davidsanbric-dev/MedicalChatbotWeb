@@ -96,8 +96,8 @@ const CLASSIC_STEPS = [
 ];
 
 const ENDPOINTS = [
-  { method: 'POST', path: '/agent/stream', out: 'SSE: tool calls, handoff, final answer + sources (422 invalid, 429 rate limited)' },
-  { method: 'POST', path: '/agent/', out: '{ response, sources, tools, handoff }' },
+  { method: 'POST', path: '/agent/stream', out: 'SSE: tool calls, handoff, conditions, final answer + sources (422 invalid, 429 rate limited)' },
+  { method: 'POST', path: '/agent/', out: '{ response, sources, tools, handoff, conditions }' },
   { method: 'POST', path: '/chat/stream', out: 'SSE: stages, tokens, final answer' },
   { method: 'POST', path: '/chat/', out: '{ response }' },
   { method: 'GET', path: '/insights/condition-names', out: 'string[]' },
@@ -180,9 +180,17 @@ data: {"answer": "Treatment options for plantar fasciitis
 # asking for a person
 data: {"tool": "request_human_handoff",
        "args": {"reason": "…", "urgency": "routine"}}
-data: {"handoff": {"id": "0319fbe8-…", "urgency": "routine"}}
+data: {"handoff": {"id": "0319fbe8-…", "reference": "0319fbe8",
+       "urgency": "routine", "reason": "…",
+       "opened_at": "2026-11-21T15:04:05+00:00"}}
 data: {"answer": "A member of our care team will follow up…",
-       "sources": []}`}
+       "sources": []}
+
+# what can you help with? (the full list arrives as data)
+data: {"tool": "list_conditions", "args": {}}
+data: {"conditions": ["Acid reflux & GERD", "Acne", …]}
+data: {"answer": "I can help with 76 conditions. Ask me
+       about any of them.", "sources": []}`}
               />
             </div>
           ),

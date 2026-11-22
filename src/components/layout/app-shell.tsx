@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router';
 import { MessageSquareText } from 'lucide-react';
+import { HandoffToaster } from '@/components/ui/handoff-toaster';
 import { LAYERS } from '@/data/layers';
 import { snapshot } from '@/data/snapshot';
 
@@ -47,6 +48,7 @@ export function AppShell() {
       <main id="main" className="flex-1">
         <Outlet />
       </main>
+      <HandoffToaster />
 
       <footer className="border-t border-line">
         <div className="mx-auto grid max-w-6xl gap-4 px-4 py-8 text-sm text-ink-2 md:grid-cols-[1fr_auto]">

@@ -56,10 +56,21 @@ export type ChatEvent = z.infer<typeof ChatEvent>;
 export const AgentTool = z.enum(['search_knowledge_base', 'list_conditions', 'request_human_handoff']);
 export type AgentTool = z.infer<typeof AgentTool>;
 
+/** A handoff the agent opened: the handoff_requests row it saved (HandoffTicket in app/schemas.py). */
+export const HandoffTicket = z.object({
+  id: z.string(),
+  reference: z.string(),
+  urgency: z.enum(['routine', 'urgent', 'emergency']),
+  reason: z.string(),
+  opened_at: z.string(),
+});
+export type HandoffTicket = z.infer<typeof HandoffTicket>;
+
 /** Events emitted by POST /agent/stream (AgentService.stream in app/services/agent.py). */
 export const AgentEvent = z.union([
   z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) }),
-  z.object({ handoff: z.object({ id: z.string(), urgency: z.enum(['routine', 'urgent', 'emergency']) }) }),
+  z.object({ handoff: HandoffTicket }),
+  z.object({ conditions: z.array(z.string()) }),
   z.object({ answer: z.string(), sources: z.array(z.string()) }),
   z.object({ error: z.string() }),
 ]);

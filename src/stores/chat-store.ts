@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { ApiError, streamAgent, streamChat } from '@/lib/api';
+import { useToastStore } from '@/stores/toast-store';
 
 export type ChatStage = 'rephrasing' | 'retrieving' | 'found' | 'answering' | 'deciding';
 
@@ -23,6 +24,8 @@ export interface ChatMessage {
   tools?: ToolCall[];
   handoff?: { id: string; urgency: string };
   sources?: string[];
+  /** What list_conditions returned, shown as a list under the answer. */
+  conditions?: string[];
 }
 
 interface ChatState {
@@ -156,6 +159,9 @@ async function runAgent(
       patchLast({ tools: [...(last()?.tools ?? []), { name: event.tool, args: event.args }] });
     } else if ('handoff' in event) {
       patchLast({ handoff: event.handoff });
+      useToastStore.getState().push(event.handoff);
+    } else if ('conditions' in event) {
+      patchLast({ conditions: event.conditions });
     } else if ('answer' in event) {
       patchLast({ content: event.answer, sources: event.sources, status: 'done' });
     } else {

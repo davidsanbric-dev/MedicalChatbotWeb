@@ -138,9 +138,21 @@ pre {
   animation: flow-dash 0.9s linear infinite;
 }
 
+/* A notification sliding in from the right */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+.toast-in {
+  animation: toast-in 0.25s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .caret::after,
-  .flow-dash {
+  .flow-dash,
+  .toast-in {
     animation: none;
   }
 }

@@ -126,7 +126,7 @@ export function ChatPage() {
           ) : (
             <ol className="mx-auto max-w-3xl space-y-6">
               {messages.map((m) => (
-                <MessageRow key={m.id} message={m} />
+                <MessageRow key={m.id} message={m} onAsk={ask} />
               ))}
             </ol>
           )}
@@ -258,7 +258,7 @@ function EmptyState({ mode, onAsk }: { mode: ChatMode; onAsk: (q: string) => voi
   );
 }
 
-function MessageRow({ message: m }: { message: ChatMessage }) {
+function MessageRow({ message: m, onAsk }: { message: ChatMessage; onAsk: (q: string) => void }) {
   if (m.role === 'user') {
     return (
       <li className="flex justify-end gap-3">
@@ -302,6 +302,7 @@ function MessageRow({ message: m }: { message: ChatMessage }) {
             <Markdown remarkPlugins={[remarkGfm]}>{m.content}</Markdown>
           </div>
         )}
+        {m.conditions && m.conditions.length > 0 && <ConditionList conditions={m.conditions} onAsk={onAsk} />}
         {m.handoff && (
           <p className="mt-3 flex items-start gap-2 rounded-lg border border-interface/40 bg-interface/10 px-3 py-2 text-sm text-ink">
             <Headset className="mt-0.5 size-4 shrink-0 text-interface" />
@@ -348,6 +349,36 @@ function ToolTrail({ tools }: { tools: ToolCall[] }) {
         );
       })}
     </ol>
+  );
+}
+
+/** What list_conditions returned, shown as data rather than retyped by the model: three
+ *  alphabetical columns (two on phones), each name a shortcut to ask about it. */
+function ConditionList({ conditions, onAsk }: { conditions: string[]; onAsk: (q: string) => void }) {
+  return (
+    <section aria-label="Conditions the agent covers" className="mt-3 rounded-xl border border-line bg-surface-2">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-line px-3 py-2 text-xs">
+        <ListChecks className="size-3.5 text-interface" />
+        <span className="font-medium text-ink">{conditions.length} conditions</span>
+        <span className="text-muted">
+          result of <code className="font-mono">list_conditions</code> · click one to ask about it
+        </span>
+      </header>
+      <ul className="columns-2 gap-x-4 px-3 py-2 sm:columns-3">
+        {conditions.map((name) => (
+          <li key={name} className="break-inside-avoid">
+            <button
+              type="button"
+              onClick={() => onAsk(`What are the symptoms of ${name} and how is it treated?`)}
+              className="w-full rounded px-1 py-0.5 text-left text-[13px] leading-snug text-ink-2 hover:bg-surface-3 hover:text-ink sm:truncate"
+              title={name}
+            >
+              {name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

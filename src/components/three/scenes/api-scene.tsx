@@ -213,7 +213,8 @@ function noteText(step: number, sc: Scenario): ReactNode {
   if (emergency) return 'Fixed safety advice comes straight back: call your local emergency number, plus the request number.';
   if (tool === 'search_knowledge_base' && sc.trace)
     return `The passages go back to the AI, which answers in round 2 of at most ${MAX_ROUNDS}, citing ${andList(sourcesOf(sc.trace))}.`;
-  if (tool === 'list_conditions') return `The list goes back to the AI, which answers in round 2 of at most ${MAX_ROUNDS} with the topics it covers.`;
+  if (tool === 'list_conditions')
+    return `The list goes back to the AI, which introduces it in round 2 of at most ${MAX_ROUNDS}. The website shows the full list under its answer.`;
   if (tool === 'request_human_handoff')
     return `The request number goes back to the AI, which says a person will follow up (round 2 of at most ${MAX_ROUNDS}).`;
   return `It answers in round 1 of at most ${MAX_ROUNDS}, with one short sentence.`;
